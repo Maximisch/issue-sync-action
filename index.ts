@@ -80,7 +80,7 @@ LabelSyncer.syncLabels(
         console.log("Labels:", issue.labels.map(label => label.name));
         
         // If flag for only syncing labelled issues is set, check if issue has label of specified sync type
-        if (ONLY_SYNC_ON_LABEL == "true" && !issue.labels.find(label => label.name === process.env.ONLY_SYNC_ON_LABEL))
+        if (ONLY_SYNC_ON_LABEL && !issue.labels.find(label => label.name === ONLY_SYNC_ON_LABEL))
             return;
 
         switch (process.env.GITHUB_EVENT_NAME) {
@@ -113,7 +113,7 @@ LabelSyncer.syncLabels(
                             repo: repo_target,
                             issue_number: targetIssueNumber,
                             body: issueComment.body || "",
-                        }).then((result) => {
+                        }).then(() => {
                             console.info("Successfully created new comment on issue");
                         }).catch((err) => {
                             let msg = "Failed to create new comment on issue";
@@ -128,97 +128,97 @@ LabelSyncer.syncLabels(
                 });
                 break;
             case "issues":
-                    // If the issue was updated, we need to sync labels
-                    switch(payload.action) {
-                        case "opened":
-                            // Create new issue in target repo
-                            octokit.request('POST /repos/{owner}/{repo}/issues', {
-                                owner: owner_target,
-                                repo: repo_target,
-                                title: issue.title,
-                                body: issue.body,
-                                labels: issue.labels.map(label => label.name),
-                            })
-                            .then((response) => {
-                                console.log("Created issue:", response.data.title);
-                                // Add comment to source issue for tracking
+                // If the issue was updated, we need to sync labels
+                switch(payload.action) {
+                    case "opened":
+                        // Create new issue in target repo
+                        octokit.request('POST /repos/{owner}/{repo}/issues', {
+                            owner: owner_target,
+                            repo: repo_target,
+                            title: issue.title,
+                            body: issue.body,
+                            labels: issue.labels.map(label => label.name),
+                        })
+                        .then((response) => {
+                            console.log("Created issue:", response.data.title);
+                            // Add comment to source issue for tracking
+                            octokit.request('PATCH /repos/{owner}/{repo}/issues/{issue_number}', {
+                                owner: owner_source,
+                                repo: repo_source,
+                                issue_number: number,
+                                body: issue.body + "\n\nNote: This issue has been copied to " + response.data.html_url + " !",
+                                }).then(() => {
+                                    console.info("Successfully created comment on issue");
+                                }).catch((err) => {
+                                    let msg = "Failed to create comment on issue";
+                                    console.error(msg, err);
+                                    core.setFailed(msg + " ${err}");
+                                });
+                        }).catch((error) => {
+                            let msg = "Error creating issue:"
+                            console.error(msg, error);
+                            core.setFailed(msg + " ${error}");
+                        });
+                        break;
+                    case "edited":
+                    case "closed":
+                    case "reopened":
+                    case "labeled":
+                    case "unlabeled":
+                        // Find issue number from target repo where the issue title matches the title of the issue in the source repo
+                        octokit.request('GET /repos/{owner}/{repo}/issues', {
+                            owner: owner_target,
+                            repo: repo_target,
+                            filter: "all",
+                            state: "all",
+                            title: issue.title,
+                        }).then((response) => {
+                            // Found issue in target repo
+                            const targetIssue = response.data.find(targetIssue => targetIssue.title === issue.title);
+                            if (targetIssue) {
+                                // Update issue in target repo
+                                // Update issue in target repo, identify target repo issue number by title match
                                 octokit.request('PATCH /repos/{owner}/{repo}/issues/{issue_number}', {
-                                    owner: owner_source,
-                                    repo: repo_source,
-                                    issue_number: number,
-                                    body: issue.body + "\n\nNote: This issue has been copied to " + response.data.html_url + " !",
-                                    }).then(() => {
-                                        console.info("Successfully created comment on issue");
-                                    }).catch((err) => {
-                                        let msg = "Failed to create comment on issue";
-                                        console.error(msg, err);
-                                        core.setFailed(msg + " ${err}");
-                                    });
-                            }).catch((error) => {
-                                let msg = "Error creating issue:"
-                                console.error(msg, error);
-                                core.setFailed(msg + " ${error}");
-                            });
-                            break;
-                        case "edited":
-                        case "closed":
-                        case "reopened":
-                        case "labeled":
-                        case "unlabeled":
-                            // Find issue number from target repo where the issue title matches the title of the issue in the source repo
-                            octokit.request('GET /repos/{owner}/{repo}/issues', {
-                                owner: owner_target,
-                                repo: repo_target,
-                                filter: "all",
-                                state: "all",
-                                title: issue.title,
-                            }).then((response) => {
-                                // Found issue in target repo
-                                const targetIssue = response.data.find(targetIssue => targetIssue.title === issue.title);
-                                if (targetIssue) {
-                                    // Update issue in target repo
-                                    // Update issue in target repo, identify target repo issue number by title match
-                                    octokit.request('PATCH /repos/{owner}/{repo}/issues/{issue_number}', {
-                                        owner: owner_target,
-                                        repo: repo_target,
-                                        title: issue.title,
-                                        body: issue.body,
-                                        state: issue.state,
-                                        issue_number: targetIssue.number,
-                                        labels: issue.labels.map(label => label.name),
-                                    })
-                                    .then((response) => {
-                                        console.log("Updated issue:", response.data.title);
-                                    }).catch((error) => {
-                                        console.error("Error updating issue:", error);
-                                    });
-                                } else {
-                                    console.error("Could not find matching issue in target repo for title", issue.title);
-                                    // Create issue anew
-                                    octokit.request('POST /repos/{owner}/{repo}/issues', {
-                                        owner: owner_target,
-                                        repo: repo_target,
-                                        title: issue.title,
-                                        body: issue.body,
-                                        labels: issue.labels.map(label => label.name),
-                                    }).then((response) => {
-                                        console.log("Created issue for lack of a match:", response.data.title);
-                                    }).catch((error) => {
-                                        let msg = "Error creating issue for lack of a match:"
-                                        console.error(msg, error);
-                                        core.setFailed(msg + " ${error}");
-                                    });
-                                }
-                            }).catch((error) => {
-                                let msg = "Error finding issue in target repo:";
-                                console.error(msg, error);
-                                core.setFailed(msg + " ${error}");
-                            });
-                            break;
-                        default:
-                            console.log("We are currently not handling events of type " + payload.action);
-                            break;
-                    }
+                                    owner: owner_target,
+                                    repo: repo_target,
+                                    title: issue.title,
+                                    body: issue.body,
+                                    state: issue.state,
+                                    issue_number: targetIssue.number,
+                                    labels: issue.labels.map(label => label.name),
+                                })
+                                .then((response) => {
+                                    console.log("Updated issue:", response.data.title);
+                                }).catch((error) => {
+                                    console.error("Error updating issue:", error);
+                                });
+                            } else {
+                                console.error("Could not find matching issue in target repo for title", issue.title);
+                                // Create issue anew
+                                octokit.request('POST /repos/{owner}/{repo}/issues', {
+                                    owner: owner_target,
+                                    repo: repo_target,
+                                    title: issue.title,
+                                    body: issue.body,
+                                    labels: issue.labels.map(label => label.name),
+                                }).then((response) => {
+                                    console.log("Created issue for lack of a match:", response.data.title);
+                                }).catch((error) => {
+                                    let msg = "Error creating issue for lack of a match:"
+                                    console.error(msg, error);
+                                    core.setFailed(msg + " ${error}");
+                                });
+                            }
+                        }).catch((error) => {
+                            let msg = "Error finding issue in target repo:";
+                            console.error(msg, error);
+                            core.setFailed(msg + " ${error}");
+                        });
+                        break;
+                    default:
+                        console.log("We are currently not handling events of type " + payload.action);
+                        break;
+                }
                 break;
             default:
                 break;

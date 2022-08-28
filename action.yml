@@ -1,7 +1,7 @@
 name: 'Issue sync action'
 description: 'Sync issues from one repository to another.'
 inputs:
-  only-sync-on-label:
+  only_sync_on_label:
     description: 'If set, will only sync on issues with a label of this text'
     required: false
   repo_source:

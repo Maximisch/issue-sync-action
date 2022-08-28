@@ -23429,7 +23429,7 @@ labelSyncer_1.LabelSyncer.syncLabels(octokit, owner_source, repo_source, owner_t
         console.log("Found issue:", issue.title);
         console.log("Labels:", issue.labels.map(label => label.name));
         // If flag for only syncing labelled issues is set, check if issue has label of specified sync type
-        if (ONLY_SYNC_ON_LABEL == "true" && !issue.labels.find(label => label.name === process.env.ONLY_SYNC_ON_LABEL))
+        if (ONLY_SYNC_ON_LABEL && !issue.labels.find(label => label.name === ONLY_SYNC_ON_LABEL))
             return;
         switch (process.env.GITHUB_EVENT_NAME) {
             case "issue_comment":
@@ -23456,7 +23456,7 @@ labelSyncer_1.LabelSyncer.syncLabels(octokit, owner_source, repo_source, owner_t
                             repo: repo_target,
                             issue_number: targetIssueNumber,
                             body: issueComment.body || "",
-                        }).then((result) => {
+                        }).then(() => {
                             console.info("Successfully created new comment on issue");
                         }).catch((err) => {
                             let msg = "Failed to create new comment on issue";
