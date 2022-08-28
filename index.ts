@@ -141,6 +141,19 @@ LabelSyncer.syncLabels(
                             })
                             .then((response) => {
                                 console.log("Created issue:", response.data.title);
+                                // Add comment to source issue for tracking
+                                octokit.request('POST /repos/{owner}/{repo}/issues/{issue_number}/comments', {
+                                    owner: owner_source,
+                                    repo: repo_source,
+                                    issue_number: number,
+                                    body: issue.body + "\n\nNote: This issue has been copied to " + response.data.url + " !",
+                                    }).then(() => {
+                                        console.info("Successfully created comment on issue");
+                                    }).catch((err) => {
+                                        let msg = "Failed to create comment on issue";
+                                        console.error(msg, err);
+                                        core.setFailed(msg + " ${err}");
+                                    });
                             }).catch((error) => {
                                 let msg = "Error creating issue:"
                                 console.error(msg, error);
