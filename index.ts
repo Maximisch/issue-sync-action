@@ -157,12 +157,13 @@ LabelSyncer.syncLabels(
                                 if (targetIssue) {
                                     // Update issue in target repo
                                     // Update issue in target repo, identify target repo issue number by title match
-                                    octokit.request('PATCH /repos/{owner}/{repo}/issues', {
+                                    octokit.request('PATCH /repos/{owner}/{repo}/issues/{issue_number}', {
                                         owner: owner_target,
                                         repo: repo_target,
                                         title: issue.title,
                                         body: issue.body,
                                         state: issue.state,
+                                        issue_number: targetIssue.number,
                                         labels: issue.labels.map(label => label.name),
                                     })
                                     .then((response) => {
@@ -172,6 +173,20 @@ LabelSyncer.syncLabels(
                                     });
                                 } else {
                                     console.error("Could not find matching issue in target repo for title", issue.title);
+                                    // Create issue anew
+                                    octokit.request('POST /repos/{owner}/{repo}/issues', {
+                                        owner: owner_target,
+                                        repo: repo_target,
+                                        title: issue.title,
+                                        body: issue.body,
+                                        labels: issue.labels.map(label => label.name),
+                                    }).then((response) => {
+                                        console.log("Created issue for lack of a match:", response.data.title);
+                                    }).catch((error) => {
+                                        let msg = "Error creating issue for lack of a match:"
+                                        console.error(msg, error);
+                                        core.setFailed(msg + " ${error}");
+                                    });
                                 }
                             }).catch((error) => {
                                 let msg = "Error finding issue in target repo:";

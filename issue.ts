@@ -5,7 +5,7 @@ export class Issue {
     title: string;
     authors: string[];
     body: string;
-    state: string;
+    state: 'open' | 'closed';
     labels: Label[];
 }
 
