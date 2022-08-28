@@ -1,5 +1,6 @@
 # issue-sync-action
 Used to sync issues and comments from one repository to another, for example for use in internal roadmap publication.
+**Please note: you need to set a GITHUB_TOKEN environmental variable that is authorized to read from the source repository as well as write new issues to the target repository. It is recommended to use the integrated GitHub Actions secrets vault for managing this secret.**
 
 This supports different options:
 ```yml
@@ -20,6 +21,9 @@ only_sync_main_issue:
  
 Here is a usage example:
 ```yml
+env:
+  GITHUB_TOKEN: ${{ secrets.GH_TOKEN_FOR_BOTH_REPOS }}
+
 - name: Run the typescript action
   uses: Maximisch/issue-sync-action
   with:
