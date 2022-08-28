@@ -1,4 +1,6 @@
 // import octokit
+import core from "@actions/core";
+import github from "@actions/github";
 import { Octokit } from "octokit";
 import { Issue, IssueComment } from "./issue";
 import { LabelSyncer } from "./labelSyncer";
@@ -9,29 +11,43 @@ let repo_source = "";
 let owner_target = "";
 let repo_target = "";
 let GITHUB_TOKEN = "";
+let ONLY_SYNC_ON_LABEL: string;
 
-// read all variables from launch parameters
-const launchArgs = process.argv;
-for (let i = 0; i < launchArgs.length; i++) {
-    if (launchArgs[i] === "--owner_source") {
-        owner_source = launchArgs[i + 1];
-    } else if (launchArgs[i] === "--repo_source") {
-        repo_source = launchArgs[i + 1];
-    } else if (launchArgs[i] === "--owner_target") {
-        owner_target = launchArgs[i + 1];
-    } else if (launchArgs[i] === "--repo_target") {
-        repo_target = launchArgs[i + 1];
-    } else if (launchArgs[i] === "--github_token") {
-        GITHUB_TOKEN = launchArgs[i + 1];
+// Core will only exist in github actions context
+if (core){
+    // Read source and target repos
+    let repo_source = core.getInput("repo_source") || github.context.repo.owner + '/' + github.context.repo.repo;
+    owner_source = repo_source.split['/'][0];
+    repo_source = repo_source.split['/'][1];
+    let repo_target = core.getInput("repo_target");
+    owner_target = repo_target.split['/'][0];
+    repo_target = repo_target.split['/'][1];
+    // Read token and params
+    GITHUB_TOKEN = core.getInput("GITHUB_TOKEN");
+    ONLY_SYNC_ON_LABEL = core.getInput("only_sync_on_label");
+} else {
+    // read all variables from launch parameters
+    const launchArgs = process.argv;
+    for (let i = 0; i < launchArgs.length; i++) {
+        if (launchArgs[i] === "--owner_source") {
+            owner_source = launchArgs[i + 1];
+        } else if (launchArgs[i] === "--repo_source") {
+            repo_source = launchArgs[i + 1];
+        } else if (launchArgs[i] === "--owner_target") {
+            owner_target = launchArgs[i + 1];
+        } else if (launchArgs[i] === "--repo_target") {
+            repo_target = launchArgs[i + 1];
+        } else if (launchArgs[i] === "--github_token") {
+            GITHUB_TOKEN = launchArgs[i + 1];
+        }
     }
 }
+
 
 // Init octokit
 const octokit = new Octokit({
     auth: GITHUB_TOKEN,
 });
-
-console.debug('Using auth', GITHUB_TOKEN);
 
 LabelSyncer.syncLabels(
     octokit,
@@ -64,11 +80,12 @@ octokit.request('GET /repos/{owner}/{repo}/issues/{number}', {
     switch (process.env.GITHUB_EVENT_NAME) {
         case "issue_comment":
             // If flag for only syncing issue bodies is set and skip if true
-            if (process.env.ONLY_SYNC_MAIN_ISSUE)
+            if (core.getBooleanInput("only_sync_main_issue"))
                 return;
-            if (payload.action !== "create")
+            if (payload.action !== "create") {
                 console.warn("This will only sync new comments, events of current type are ignored", payload.action);
                 return;
+            }
             // Retrieve new comment
             let issueComment: IssueComment;
             octokit.request('GET /repos/{owner}/{repo}/issues/{issue_number}/comments/{comment_id}', {

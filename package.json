@@ -13,6 +13,8 @@
   "author": "Maximilian Schirm",
   "license": "MIT",
   "dependencies": {
+    "@actions/core": "^1.9.1",
+    "@actions/github": "^5.0.3",
     "octokit": "^2.0.7"
   }
 }
