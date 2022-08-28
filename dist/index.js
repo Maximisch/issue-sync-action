@@ -23381,7 +23381,7 @@ if (process.env.CI == "true") {
     owner_target = repo_target.split('/')[0];
     repo_target = repo_target.split('/')[1];
     // Read token and params
-    GITHUB_TOKEN = core.getInput("GITHUB_TOKEN");
+    GITHUB_TOKEN = process.env.GITHUB_TOKEN;
     ONLY_SYNC_ON_LABEL = core.getInput("only_sync_on_label");
     console.log("Repos: " + owner_source + "/" + repo_source + " -> " + owner_target + "/" + repo_target);
     console.log("Only sync on label: " + ONLY_SYNC_ON_LABEL);
