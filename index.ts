@@ -142,7 +142,7 @@ LabelSyncer.syncLabels(
                             .then((response) => {
                                 console.log("Created issue:", response.data.title);
                                 // Add comment to source issue for tracking
-                                octokit.request('POST /repos/{owner}/{repo}/issues/{issue_number}/comments', {
+                                octokit.request('PATCH /repos/{owner}/{repo}/issues/{issue_number}', {
                                     owner: owner_source,
                                     repo: repo_source,
                                     issue_number: number,
