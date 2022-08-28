@@ -146,7 +146,7 @@ LabelSyncer.syncLabels(
                                     owner: owner_source,
                                     repo: repo_source,
                                     issue_number: number,
-                                    body: issue.body + "\n\nNote: This issue has been copied to " + response.data.url + " !",
+                                    body: issue.body + "\n\nNote: This issue has been copied to " + response.data.html_url + " !",
                                     }).then(() => {
                                         console.info("Successfully created comment on issue");
                                     }).catch((err) => {
