@@ -23435,7 +23435,7 @@ labelSyncer_1.LabelSyncer.syncLabels(octokit, owner_source, repo_source, owner_t
                 // If flag for only syncing issue bodies is set and skip if true
                 if (core.getBooleanInput("only_sync_main_issue"))
                     return;
-                if (payload.action !== "create") {
+                if (payload.action !== "created") {
                     console.warn("This will only sync new comments, events of current type are ignored", payload.action);
                     return;
                 }
