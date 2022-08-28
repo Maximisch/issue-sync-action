@@ -1,6 +1,6 @@
 // import octokit
-import core from "@actions/core";
-import github from "@actions/github";
+import * as core from '@actions/core';
+import * as github from "@actions/github";
 import { Octokit } from "octokit";
 import { Issue, IssueComment } from "./issue";
 import { LabelSyncer } from "./labelSyncer";

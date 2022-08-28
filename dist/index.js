@@ -23334,13 +23334,33 @@ try {
 
 "use strict";
 
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 // import octokit
-const core_1 = __importDefault(__nccwpck_require__(249));
-const github_1 = __importDefault(__nccwpck_require__(7279));
+const core = __importStar(__nccwpck_require__(249));
+const github = __importStar(__nccwpck_require__(7279));
 const octokit_1 = __nccwpck_require__(1650);
 const labelSyncer_1 = __nccwpck_require__(3282);
 // use label from ./Label.ts
@@ -23354,18 +23374,18 @@ let ONLY_SYNC_ON_LABEL;
 if (process.env.CI == "true") {
     console.log("Reading params from actions context...");
     // Read source and target repos
-    repo_source = core_1.default.getInput("repo_source") ? core_1.default.getInput("repo_source") : github_1.default.context.repo.owner + '/' + github_1.default.context.repo.repo;
+    repo_source = core.getInput("repo_source") ? core.getInput("repo_source") : github.context.repo.owner + '/' + github.context.repo.repo;
     owner_source = repo_source.split('/')[0];
     repo_source = repo_source.split('/')[1];
-    repo_target = core_1.default.getInput("repo_target");
+    repo_target = core.getInput("repo_target");
     owner_target = repo_target.split('/')[0];
     repo_target = repo_target.split('/')[1];
     // Read token and params
-    GITHUB_TOKEN = core_1.default.getInput("GITHUB_TOKEN");
-    ONLY_SYNC_ON_LABEL = core_1.default.getInput("only_sync_on_label");
+    GITHUB_TOKEN = core.getInput("GITHUB_TOKEN");
+    ONLY_SYNC_ON_LABEL = core.getInput("only_sync_on_label");
     console.log("Repos: " + owner_source + "/" + repo_source + " -> " + owner_target + "/" + repo_target);
     console.log("Only sync on label: " + ONLY_SYNC_ON_LABEL);
-    console.log("Do not sync comments: " + core_1.default.getBooleanInput("only_sync_main_issue"));
+    console.log("Do not sync comments: " + core.getBooleanInput("only_sync_main_issue"));
 }
 else {
     console.log("Reading params from CLI context...");
@@ -23413,7 +23433,7 @@ labelSyncer_1.LabelSyncer.syncLabels(octokit, owner_source, repo_source, owner_t
         switch (process.env.GITHUB_EVENT_NAME) {
             case "issue_comment":
                 // If flag for only syncing issue bodies is set and skip if true
-                if (core_1.default.getBooleanInput("only_sync_main_issue"))
+                if (core.getBooleanInput("only_sync_main_issue"))
                     return;
                 if (payload.action !== "create") {
                     console.warn("This will only sync new comments, events of current type are ignored", payload.action);
@@ -23439,12 +23459,12 @@ labelSyncer_1.LabelSyncer.syncLabels(octokit, owner_source, repo_source, owner_t
                     }).catch((err) => {
                         let msg = "Failed to create new comment on issue";
                         console.error(msg, err);
-                        core_1.default.setFailed(msg + " ${err}");
+                        core.setFailed(msg + " ${err}");
                     });
                 }).catch((err) => {
                     let msg = "Failed to retrieve issue comments";
                     console.error(msg, err);
-                    core_1.default.setFailed(msg + " ${err}");
+                    core.setFailed(msg + " ${err}");
                 });
                 break;
             case "issues":
@@ -23464,7 +23484,7 @@ labelSyncer_1.LabelSyncer.syncLabels(octokit, owner_source, repo_source, owner_t
                         }).catch((error) => {
                             let msg = "Error creating issue:";
                             console.error(msg, error);
-                            core_1.default.setFailed(msg + " ${error}");
+                            core.setFailed(msg + " ${error}");
                         });
                         break;
                     case "edited":
@@ -23505,7 +23525,7 @@ labelSyncer_1.LabelSyncer.syncLabels(octokit, owner_source, repo_source, owner_t
                         }).catch((error) => {
                             let msg = "Error finding issue in target repo:";
                             console.error(msg, error);
-                            core_1.default.setFailed(msg + " ${error}");
+                            core.setFailed(msg + " ${error}");
                         });
                         break;
                     default:
@@ -23518,7 +23538,7 @@ labelSyncer_1.LabelSyncer.syncLabels(octokit, owner_source, repo_source, owner_t
         }
     }).catch((err) => {
         console.error("Failed to retrieve issue", err);
-        core_1.default.setFailed("Failed to retrieve issue ${err}");
+        core.setFailed("Failed to retrieve issue ${err}");
     });
 });
 
