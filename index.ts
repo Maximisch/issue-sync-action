@@ -101,7 +101,7 @@ LabelSyncer.syncLabels(
                 }).then((response) => {
                     issueComment = response.data;
                     // Transfer new comment to target issue
-                    octokit.request('POST /repos/{owner}/{repo}/issues/comments', {
+                    octokit.request('POST /repos/{owner}/{repo}/issues/{issue_number}/comments', {
                         owner: owner_target,
                         repo: repo_target,
                         issue_number: number,
