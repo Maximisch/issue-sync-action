@@ -14,7 +14,7 @@ let GITHUB_TOKEN = "";
 let ONLY_SYNC_ON_LABEL: string;
 
 // Determine which context we are running from
-if (github.context){
+if (process.env.CI == "true") {
     console.log("Reading params from actions context...");
     // Read source and target repos
     repo_source = core.getInput("repo_source")? core.getInput("repo_source") : github.context.repo.owner + '/' + github.context.repo.repo;
@@ -79,7 +79,7 @@ LabelSyncer.syncLabels(
         console.log("Labels:", issue.labels.map(label => label.name));
         
         // If flag for only syncing labelled issues is set, check if issue has label of specified sync type
-        if (process.env.ONLY_SYNC_ON_LABEL && !issue.labels.find(label => label.name === process.env.ONLY_SYNC_ON_LABEL))
+        if (ONLY_SYNC_ON_LABEL == "true" && !issue.labels.find(label => label.name === process.env.ONLY_SYNC_ON_LABEL))
             return;
 
         switch (process.env.GITHUB_EVENT_NAME) {
