@@ -13,8 +13,8 @@ let repo_target = "";
 let GITHUB_TOKEN = "";
 let ONLY_SYNC_ON_LABEL: string;
 
-// Core will only exist in github actions context
-if (core){
+// Determine which context we are running from
+if (github.context){
     console.log("Reading params from actions context...");
     // Read source and target repos
     repo_source = core.getInput("repo_source")? core.getInput("repo_source") : github.context.repo.owner + '/' + github.context.repo.repo;
@@ -49,10 +49,10 @@ if (core){
     }
 }
 
-
 // Init octokit
 const octokit = new Octokit({
     auth: GITHUB_TOKEN,
+    // TODO: add ghes IP support here, or use github.octokit
 });
 
 LabelSyncer.syncLabels(
@@ -109,10 +109,14 @@ LabelSyncer.syncLabels(
                     }).then((result) => {
                         console.info("Successfully created new comment on issue");
                     }).catch((err) => {
-                        console.error("Failed to create new comment on issue", err);
+                        let msg = "Failed to create new comment on issue";
+                        console.error(msg, err);
+                        core.setFailed(msg + " ${err}");
                     })
                 }).catch((err) => {
-                    console.error("Failed to retrieve issue comments", err);
+                    let msg = "Failed to retrieve issue comments"
+                    console.error(msg, err);
+                    core.setFailed(msg + " ${err}");
                 });
                 break;
             case "issues":
@@ -130,7 +134,9 @@ LabelSyncer.syncLabels(
                             .then((response) => {
                                 console.log("Created issue:", response.data.title);
                             }).catch((error) => {
-                                console.error("Error creating issue:", error);
+                                let msg = "Error creating issue:"
+                                console.error(msg, error);
+                                core.setFailed(msg + " ${error}");
                             });
                             break;
                         case "edited":
@@ -168,7 +174,9 @@ LabelSyncer.syncLabels(
                                     console.error("Could not find matching issue in target repo for title", issue.title);
                                 }
                             }).catch((error) => {
-                                console.error("Error finding issue in target repo:", error);
+                                let msg = "Error finding issue in target repo:";
+                                console.error(msg, error);
+                                core.setFailed(msg + " ${error}");
                             });
                             break;
                         default:
@@ -181,5 +189,6 @@ LabelSyncer.syncLabels(
         }
     }).catch((err) => {
         console.error("Failed to retrieve issue", err);
+        core.setFailed("Failed to retrieve issue ${err}");
     });
 });
