@@ -17,11 +17,11 @@ let ONLY_SYNC_ON_LABEL: string;
 if (core){
     // Read source and target repos
     let repo_source = core.getInput("repo_source") || github.context.repo.owner + '/' + github.context.repo.repo;
-    owner_source = repo_source.split['/'][0];
-    repo_source = repo_source.split['/'][1];
+    owner_source = repo_source.split('/')[0];
+    repo_source = repo_source.split('/')[1];
     let repo_target = core.getInput("repo_target");
-    owner_target = repo_target.split['/'][0];
-    repo_target = repo_target.split['/'][1];
+    owner_target = repo_target.split('/')[0];
+    repo_target = repo_target.split('/')[1];
     // Read token and params
     GITHUB_TOKEN = core.getInput("GITHUB_TOKEN");
     ONLY_SYNC_ON_LABEL = core.getInput("only_sync_on_label");

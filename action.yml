@@ -16,4 +16,4 @@ inputs:
     default: "false"
 runs:
   using: 'node16'
-  main: 'index.ts'
+  main: 'dist/index.js'
