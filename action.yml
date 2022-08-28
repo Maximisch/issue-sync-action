@@ -1,5 +1,9 @@
 name: 'Issue sync action'
 description: 'Sync issues from one repository to another.'
+branding:
+  icon: repeat
+  color: red
+author: Maximisch
 inputs:
   only_sync_on_label:
     description: 'If set, will only sync on issues with a label of this text'
