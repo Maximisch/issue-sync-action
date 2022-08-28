@@ -23362,6 +23362,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(249));
 const github = __importStar(__nccwpck_require__(7279));
 const octokit_1 = __nccwpck_require__(1650);
+const issueSyncer_1 = __nccwpck_require__(2502);
 const labelSyncer_1 = __nccwpck_require__(3282);
 // use label from ./Label.ts
 let owner_source = "";
@@ -23448,18 +23449,20 @@ labelSyncer_1.LabelSyncer.syncLabels(octokit, owner_source, repo_source, owner_t
                     comment_id: payload.comment.id,
                 }).then((response) => {
                     issueComment = response.data;
-                    // Transfer new comment to target issue
-                    octokit.request('POST /repos/{owner}/{repo}/issues/{issue_number}/comments', {
-                        owner: owner_target,
-                        repo: repo_target,
-                        issue_number: number,
-                        body: issueComment.body || "",
-                    }).then((result) => {
-                        console.info("Successfully created new comment on issue");
-                    }).catch((err) => {
-                        let msg = "Failed to create new comment on issue";
-                        console.error(msg, err);
-                        core.setFailed(msg + " ${err}");
+                    issueSyncer_1.IssueSyncer.getIssueNumberByTitle(octokit, owner_target, repo_target, issue.title).then((targetIssueNumber) => {
+                        // Transfer new comment to target issue
+                        octokit.request('POST /repos/{owner}/{repo}/issues/{issue_number}/comments', {
+                            owner: owner_target,
+                            repo: repo_target,
+                            issue_number: targetIssueNumber,
+                            body: issueComment.body || "",
+                        }).then((result) => {
+                            console.info("Successfully created new comment on issue");
+                        }).catch((err) => {
+                            let msg = "Failed to create new comment on issue";
+                            console.error(msg, err);
+                            core.setFailed(msg + " ${err}");
+                        });
                     });
                 }).catch((err) => {
                     let msg = "Failed to retrieve issue comments";
@@ -23556,6 +23559,30 @@ labelSyncer_1.LabelSyncer.syncLabels(octokit, owner_source, repo_source, owner_t
         core.setFailed("Failed to retrieve issue ${err}");
     });
 });
+
+
+/***/ }),
+
+/***/ 2502:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.IssueSyncer = void 0;
+class IssueSyncer {
+    static getIssueNumberByTitle(octokit, owner, repo, issue_title) {
+        // retrieve issue from target repo by title
+        return octokit.request('GET /repos/{owner}/{repo}/issues', {
+            owner: owner,
+            repo: repo,
+            title: issue_title
+        }).then((response) => {
+            return response.data[0].number;
+        });
+    }
+}
+exports.IssueSyncer = IssueSyncer;
 
 
 /***/ }),

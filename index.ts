@@ -3,6 +3,7 @@ import * as core from '@actions/core';
 import * as github from "@actions/github";
 import { Octokit } from "octokit";
 import { Issue, IssueComment } from "./issue";
+import { IssueSyncer } from './issueSyncer';
 import { LabelSyncer } from "./labelSyncer";
 // use label from ./Label.ts
 
@@ -100,19 +101,26 @@ LabelSyncer.syncLabels(
                     comment_id: payload.comment.id,
                 }).then((response) => {
                     issueComment = response.data;
-                    // Transfer new comment to target issue
-                    octokit.request('POST /repos/{owner}/{repo}/issues/{issue_number}/comments', {
-                        owner: owner_target,
-                        repo: repo_target,
-                        issue_number: number,
-                        body: issueComment.body || "",
-                    }).then((result) => {
-                        console.info("Successfully created new comment on issue");
-                    }).catch((err) => {
-                        let msg = "Failed to create new comment on issue";
-                        console.error(msg, err);
-                        core.setFailed(msg + " ${err}");
-                    })
+                    IssueSyncer.getIssueNumberByTitle(
+                        octokit,
+                        owner_target,
+                        repo_target,
+                        issue.title
+                    ).then((targetIssueNumber) => {
+                        // Transfer new comment to target issue
+                        octokit.request('POST /repos/{owner}/{repo}/issues/{issue_number}/comments', {
+                            owner: owner_target,
+                            repo: repo_target,
+                            issue_number: targetIssueNumber,
+                            body: issueComment.body || "",
+                        }).then((result) => {
+                            console.info("Successfully created new comment on issue");
+                        }).catch((err) => {
+                            let msg = "Failed to create new comment on issue";
+                            console.error(msg, err);
+                            core.setFailed(msg + " ${err}");
+                        })
+                    });
                 }).catch((err) => {
                     let msg = "Failed to retrieve issue comments"
                     console.error(msg, err);
