@@ -21,6 +21,11 @@ only_sync_main_issue:
  
 Here is a usage example:
 ```yml
+
+on:
+  issues:
+  issue_comment:
+
 env:
   GITHUB_TOKEN: ${{ secrets.GH_TOKEN_FOR_BOTH_REPOS }}
 
