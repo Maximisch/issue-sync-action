@@ -21,18 +21,29 @@ only_sync_main_issue:
  
 Here is a usage example:
 ```yml
+---
+name: issue-sync
 
 on:
   issues:
+    types: [closed, deleted, edited, labeled, opened, reopened, unlabeled]
   issue_comment:
+    types: [created]
 
-env:
-  GITHUB_TOKEN: ${{ secrets.GH_TOKEN_FOR_BOTH_REPOS }}
-
-- name: Run the typescript action
-  uses: Maximisch/issue-sync-action
-  with:
-    repo_target: "MyOrg/public-roadmap" # The target repository
-    only_sync_on_label: "publicise" # Only syncs issues with this label set
-    only_sync_main_issue: true # Excludes comments
+jobs:
+  issue-sync:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Run the typescript action
+      uses: Maximisch/issue-sync-action
+      id: issue_sync
+      with:
+        repo_target: "MyOrg/public-roadmap" # The target repository
+        only_sync_on_label: "publicise" # Only syncs issues with this label set
+        only_sync_main_issue: true # Excludes comments
+      env:
+        GITHUB_TOKEN: ${{ secrets.GH_TOKEN_FOR_BOTH_REPOS }}
+    - run: |
+      echo "issue_id_target: ${{ steps.issue_sync.outputs.issue_id_target }}"
+      echo "comment_id_target: ${{ steps.issue_sync.outputs.comment_id_target }}"
 ```

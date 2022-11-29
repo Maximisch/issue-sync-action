@@ -107,13 +107,18 @@ LabelSyncer.syncLabels(
                         repo_target,
                         issue.title
                     ).then((targetIssueNumber) => {
+                        // set target issue id for GH output
+                        console.log(`target_issue_id:${targetIssueNumber}`)
+                        core.setOutput('issue_id_target', targetIssueNumber);
                         // Transfer new comment to target issue
                         octokit.request('POST /repos/{owner}/{repo}/issues/{issue_number}/comments', {
                             owner: owner_target,
                             repo: repo_target,
                             issue_number: targetIssueNumber,
                             body: issueComment.body || "",
-                        }).then(() => {
+                        }).then((response) => {
+                            // set target comment id for GH output
+                            core.setOutput('comment_id_target', response.data.id);
                             console.info("Successfully created new comment on issue");
                         }).catch((err) => {
                             let msg = "Failed to create new comment on issue";
@@ -141,6 +146,9 @@ LabelSyncer.syncLabels(
                         })
                         .then((response) => {
                             console.log("Created issue:", response.data.title);
+                            // set target issue id for GH output
+                            console.log(`target_issue_id:${response.data.id}`)
+                            core.setOutput('issue_id_target', response.data.id);
                             // Add comment to source issue for tracking
                             octokit.request('PATCH /repos/{owner}/{repo}/issues/{issue_number}', {
                                 owner: owner_source,
@@ -176,6 +184,9 @@ LabelSyncer.syncLabels(
                             // Found issue in target repo
                             const targetIssue = response.data.find(targetIssue => targetIssue.title === issue.title);
                             if (targetIssue) {
+                                // set target issue id for GH output
+                                console.log(`target_issue_id:${targetIssue.number}`)
+                                core.setOutput('issue_id_target', targetIssue.number);
                                 // Update issue in target repo
                                 // Update issue in target repo, identify target repo issue number by title match
                                 octokit.request('PATCH /repos/{owner}/{repo}/issues/{issue_number}', {
@@ -202,6 +213,8 @@ LabelSyncer.syncLabels(
                                     body: issue.body,
                                     labels: issue.labels.map(label => label.name),
                                 }).then((response) => {
+                                    // set target issue id for GH output
+                                    core.setOutput('issue_id_target', response.data.number);
                                     console.log("Created issue for lack of a match:", response.data.title);
                                 }).catch((error) => {
                                     let msg = "Error creating issue for lack of a match:"

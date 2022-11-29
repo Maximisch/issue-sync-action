@@ -18,6 +18,11 @@ inputs:
     description: 'Will exclude the syncing of comments.'
     required: false
     default: "false"
+outputs:
+  issue_id_target:
+    description: 'The issue id of the found issue with the same name in the target repository, empty if not found'
+  comment_id_target:
+    description: 'The comment id of the created comment in the target repository, empty if not found'
 runs:
   using: 'node16'
   main: 'dist/index.js'
