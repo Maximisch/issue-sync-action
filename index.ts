@@ -13,6 +13,8 @@ let owner_target = "";
 let repo_target = "";
 let GITHUB_TOKEN = "";
 let ONLY_SYNC_ON_LABEL: string;
+let CREATE_ISSUES_ON_EDIT: boolean;
+let ONLY_SYNC_MAIN_ISSUE: boolean;
 
 // Determine which context we are running from
 if (process.env.CI == "true") {
@@ -27,10 +29,13 @@ if (process.env.CI == "true") {
     // Read token and params
     GITHUB_TOKEN = process.env.GITHUB_TOKEN;
     ONLY_SYNC_ON_LABEL = core.getInput("only_sync_on_label");
+    CREATE_ISSUES_ON_EDIT = core.getBooleanInput("create_issues_on_edit");
+    ONLY_SYNC_MAIN_ISSUE = core.getBooleanInput("only_sync_main_issue");
 
-    console.log("Repos: " + owner_source + "/" + repo_source + " -> " + owner_target + "/" + repo_target);
-    console.log("Only sync on label: " + ONLY_SYNC_ON_LABEL);
-    console.log("Do not sync comments: " + core.getBooleanInput("only_sync_main_issue"));
+    console.log(`Repos: ${owner_source}/${repo_source} -> ${owner_target}/${repo_target}`);
+    console.log(`Only sync on label: ${ONLY_SYNC_ON_LABEL}`);
+    console.log(`Do not sync comments: ${ONLY_SYNC_MAIN_ISSUE}`);
+    console.log(`Create missing issues on edit events: ${CREATE_ISSUES_ON_EDIT}`)
 } else {
     console.log("Reading params from CLI context...");
     // read all variables from launch parameters
@@ -76,7 +81,7 @@ LabelSyncer.syncLabels(
         // Retrieved issue
         const issue: Issue = response.data;
 
-        console.log("Found issue:", issue.title);
+        console.log(`Found issue: ${issue.title}`);
         console.log("Labels:", issue.labels.map(label => label.name));
         
         // If flag for only syncing labelled issues is set, check if issue has label of specified sync type
@@ -86,7 +91,7 @@ LabelSyncer.syncLabels(
         switch (process.env.GITHUB_EVENT_NAME) {
             case "issue_comment":
                 // If flag for only syncing issue bodies is set and skip if true
-                if (core.getBooleanInput("only_sync_main_issue"))
+                if (ONLY_SYNC_MAIN_ISSUE)
                     return;
                 if (payload.action !== "created") {
                     console.warn("This will only sync new comments, events of current type are ignored", payload.action);
@@ -174,15 +179,16 @@ LabelSyncer.syncLabels(
                     case "labeled":
                     case "unlabeled":
                         // Find issue number from target repo where the issue title matches the title of the issue in the source repo
-                        octokit.request('GET /repos/{owner}/{repo}/issues', {
-                            owner: owner_target,
-                            repo: repo_target,
-                            filter: "all",
-                            state: "all",
-                            title: issue.title,
+                        // Sort by created and order by ascending to select the oldest created issue of that title
+                        // encoding the title just in case even though GitHub seems to be quite flexible on that
+                        octokit.request('GET /search/issues', {
+                            q: `repo:${owner_target}/${repo_target}+in:title+type:issue+${encodeURIComponent(issue.title)}`,
+                            sort: 'created',
+                            order: 'asc'
                         }).then((response) => {
-                            // Found issue in target repo
-                            const targetIssue = response.data.find(targetIssue => targetIssue.title === issue.title);
+                            // Return first found issue in the array
+                            // due to sort "created" and order "asc" it will be the oldest created issue with the title
+                            const targetIssue = response.data.items.find(targetIssue => targetIssue.title === issue.title);
                             if (targetIssue) {
                                 // set target issue id for GH output
                                 console.log(`target_issue_id:${targetIssue.number}`)
@@ -205,22 +211,25 @@ LabelSyncer.syncLabels(
                                 });
                             } else {
                                 console.error("Could not find matching issue in target repo for title", issue.title);
-                                // Create issue anew
-                                octokit.request('POST /repos/{owner}/{repo}/issues', {
-                                    owner: owner_target,
-                                    repo: repo_target,
-                                    title: issue.title,
-                                    body: issue.body,
-                                    labels: issue.labels.map(label => label.name),
-                                }).then((response) => {
-                                    // set target issue id for GH output
-                                    core.setOutput('issue_id_target', response.data.number);
-                                    console.log("Created issue for lack of a match:", response.data.title);
-                                }).catch((error) => {
-                                    let msg = "Error creating issue for lack of a match:"
-                                    console.error(msg, error);
-                                    core.setFailed(msg + " ${error}");
-                                });
+
+                                if (CREATE_ISSUES_ON_EDIT) {
+                                    // Create issue anew
+                                    octokit.request('POST /repos/{owner}/{repo}/issues', {
+                                        owner: owner_target,
+                                        repo: repo_target,
+                                        title: issue.title,
+                                        body: issue.body,
+                                        labels: issue.labels.map(label => label.name),
+                                    }).then((response) => {
+                                        // set target issue id for GH output
+                                        core.setOutput('issue_id_target', response.data.number);
+                                        console.log("Created issue for lack of a match:", response.data.title);
+                                    }).catch((error) => {
+                                        let msg = "Error creating issue for lack of a match:"
+                                        console.error(msg, error);
+                                        core.setFailed(msg + " ${error}");
+                                    });
+                                }
                             }
                         }).catch((error) => {
                             let msg = "Error finding issue in target repo:";
