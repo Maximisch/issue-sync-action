@@ -18,6 +18,10 @@ inputs:
     description: 'Will exclude the syncing of comments.'
     required: false
     default: "false"
+  create_issues_on_edit:
+    description: 'Whether on edit events an issue should be created if it is missing in the target project'
+    required: false
+    default: "true"
 outputs:
   issue_id_target:
     description: 'The issue id of the found issue with the same name in the target repository, empty if not found'
