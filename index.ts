@@ -207,7 +207,7 @@ LabelSyncer.syncLabels(
                             } else {
                                 console.error("Could not find matching issue in target repo for title", issue.title);
 
-                                if (CREATE_ISSUES_ON_EDIT) {
+                                if (CREATE_ISSUES_ON_EDIT || payload.action == "labeled") {
                                     // Create issue anew
                                     octokit.request('POST /repos/{owner}/{repo}/issues', {
                                         owner: owner_target,

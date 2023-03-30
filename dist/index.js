@@ -43946,12 +43946,14 @@ class GitHub {
     static getIssueNumberByTitle(octokit, owner, repo, issue_title) {
         // Find issue number from target repo where the issue title matches the title of the issue in the source repo
         // Sort by created and order by ascending to select the oldest created issue of that title
-        // encoding the title just in case even though GitHub seems to be quite flexible on that
+        // Octokit automatically encoded the query
         return octokit.request('GET /search/issues', {
-            q: `repo:${owner}/${repo}+in:title+type:issue+${encodeURIComponent(issue_title)}`,
+            q: `repo:${owner}/${repo}+in:title+type:issue+${issue_title}`,
             sort: 'created',
-            order: 'asc'
+            order: 'asc',
+            per_page: 100
         }).then((response) => {
+            console.log(`Found a total of ${response.data.total_count} issues that fit the query.`);
             const targetIssue = response.data.items.find(targetIssue => targetIssue.title === issue_title);
             return (targetIssue || {}).number;
         });
@@ -44178,7 +44180,7 @@ labelSyncer_1.LabelSyncer.syncLabels(octokit, owner_source, repo_source, owner_t
                             }
                             else {
                                 console.error("Could not find matching issue in target repo for title", issue.title);
-                                if (CREATE_ISSUES_ON_EDIT) {
+                                if (CREATE_ISSUES_ON_EDIT || payload.action == "labeled") {
                                     // Create issue anew
                                     octokit.request('POST /repos/{owner}/{repo}/issues', {
                                         owner: owner_target,
