@@ -3,7 +3,7 @@ import * as core from '@actions/core';
 import * as github from "@actions/github";
 import { Octokit } from "octokit";
 import { Issue, IssueComment } from "./issue";
-import { IssueSyncer } from './issueSyncer';
+import { GitHub } from './github';
 import { LabelSyncer } from "./labelSyncer";
 // use label from ./Label.ts
 
@@ -106,7 +106,7 @@ LabelSyncer.syncLabels(
                     comment_id: payload.comment.id,
                 }).then((response) => {
                     issueComment = response.data;
-                    IssueSyncer.getIssueNumberByTitle(
+                    GitHub.getIssueNumberByTitle(
                         octokit,
                         owner_target,
                         repo_target,
@@ -178,21 +178,16 @@ LabelSyncer.syncLabels(
                     case "reopened":
                     case "labeled":
                     case "unlabeled":
-                        // Find issue number from target repo where the issue title matches the title of the issue in the source repo
-                        // Sort by created and order by ascending to select the oldest created issue of that title
-                        // encoding the title just in case even though GitHub seems to be quite flexible on that
-                        octokit.request('GET /search/issues', {
-                            q: `repo:${owner_target}/${repo_target}+in:title+type:issue+${encodeURIComponent(issue.title)}`,
-                            sort: 'created',
-                            order: 'asc'
-                        }).then((response) => {
-                            // Return first found issue in the array
-                            // due to sort "created" and order "asc" it will be the oldest created issue with the title
-                            const targetIssue = response.data.items.find(targetIssue => targetIssue.title === issue.title);
-                            if (targetIssue) {
+                        GitHub.getIssueNumberByTitle(
+                            octokit,
+                            owner_target,
+                            repo_target,
+                            issue.title
+                        ).then((targetIssueNumber) => {
+                            if (targetIssueNumber) {
                                 // set target issue id for GH output
-                                console.log(`target_issue_id:${targetIssue.number}`)
-                                core.setOutput('issue_id_target', targetIssue.number);
+                                console.log(`target_issue_id:${targetIssueNumber}`)
+                                core.setOutput('issue_id_target', targetIssueNumber);
                                 // Update issue in target repo
                                 // Update issue in target repo, identify target repo issue number by title match
                                 octokit.request('PATCH /repos/{owner}/{repo}/issues/{issue_number}', {
@@ -201,7 +196,7 @@ LabelSyncer.syncLabels(
                                     title: issue.title,
                                     body: issue.body,
                                     state: issue.state,
-                                    issue_number: targetIssue.number,
+                                    issue_number: targetIssueNumber,
                                     labels: issue.labels.map(label => label.name),
                                 })
                                 .then((response) => {
