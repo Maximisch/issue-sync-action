@@ -2,10 +2,14 @@
 import * as core from '@actions/core';
 import * as github from "@actions/github";
 import { Octokit } from "octokit";
+import { Endpoints } from "@octokit/types"
 import { Issue, IssueComment } from "./issue";
 import { GitHub } from './github';
-import { LabelSyncer } from "./labelSyncer";
+import { Label, LabelSyncer } from "./labelSyncer";
 // use label from ./Label.ts
+
+type Label2 = Endpoints["GET /repos/{owner}/{repo}/issues/{issue_number}"]["response"]["data"]["labels"]
+type Issue2 = Endpoints["GET /repos/{owner}/{repo}/issues/{issue_number}"]["response"]["data"]
 
 let owner_source = "";
 let repo_source = "";
@@ -73,11 +77,7 @@ LabelSyncer.syncLabels(
     const number = (payload.issue || payload.pull_request || payload).number;
 
     // retrieve issue by owner, repo and number from octokit
-    octokit.request('GET /repos/{owner}/{repo}/issues/{number}', {
-        owner: owner_source,
-        repo: repo_source,
-        number: number,
-    }).then((response) => {
+    GitHub.getIssue(octokit, owner_source, repo_source, number).then((response) => {
         // Retrieved issue
         const issue: Issue = response.data;
 
@@ -99,12 +99,8 @@ LabelSyncer.syncLabels(
                 }
                 // Retrieve new comment
                 let issueComment: IssueComment;
-                octokit.request('GET /repos/{owner}/{repo}/issues/comments/{comment_id}', {
-                    owner: owner_source,
-                    repo: repo_source,
-                    issue_number: number,
-                    comment_id: payload.comment.id,
-                }).then((response) => {
+                GitHub.getComment(octokit, owner_source, repo_source, payload.comment.id)
+                .then((response) => {
                     issueComment = response.data;
                     GitHub.getIssueNumberByTitle(
                         octokit,
@@ -142,13 +138,13 @@ LabelSyncer.syncLabels(
                 switch(payload.action) {
                     case "opened":
                         // Create new issue in target repo
-                        octokit.request('POST /repos/{owner}/{repo}/issues', {
-                            owner: owner_target,
-                            repo: repo_target,
-                            title: issue.title,
-                            body: issue.body,
-                            labels: issue.labels.map(label => label.name),
-                        })
+                        GitHub.createIssue(
+                            octokit, 
+                            owner_target, 
+                            repo_target, 
+                            issue.title, 
+                            issue.body, 
+                            issue.labels.map(label => label.name))
                         .then((response) => {
                             console.log("Created issue:", response.data.title);
                             // set target issue id for GH output
@@ -209,13 +205,14 @@ LabelSyncer.syncLabels(
 
                                 if (CREATE_ISSUES_ON_EDIT || payload.action == "labeled") {
                                     // Create issue anew
-                                    octokit.request('POST /repos/{owner}/{repo}/issues', {
-                                        owner: owner_target,
-                                        repo: repo_target,
-                                        title: issue.title,
-                                        body: issue.body,
-                                        labels: issue.labels.map(label => label.name),
-                                    }).then((response) => {
+                                    GitHub.createIssue(
+                                        octokit, 
+                                        owner_target, 
+                                        repo_target, 
+                                        issue.title, 
+                                        issue.body, 
+                                        issue.labels.map(label => label.name))
+                                    .then((response) => {
                                         // set target issue id for GH output
                                         core.setOutput('issue_id_target', response.data.number);
                                         console.log("Created issue for lack of a match:", response.data.title);
