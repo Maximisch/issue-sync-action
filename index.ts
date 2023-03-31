@@ -1,17 +1,17 @@
-// import octokit
 import * as core from '@actions/core';
 import * as github from "@actions/github";
 import { Octokit } from "octokit";
 import { Issue, IssueComment } from "./issue";
 import { GitHub } from './github';
 import { LabelSyncer } from "./labelSyncer";
-// use label from ./Label.ts
 
-let owner_source = "";
-let repo_source = "";
-let owner_target = "";
-let repo_target = "";
-let GITHUB_TOKEN = "";
+let ownerSource = "";
+let repoSource = "";
+let ownerTarget = "";
+let repoTarget = "";
+let githubTokenSource = "";
+let githubTokenTarget = ""
+let githubToken = "";
 let ONLY_SYNC_ON_LABEL: string;
 let CREATE_ISSUES_ON_EDIT: boolean;
 let ONLY_SYNC_MAIN_ISSUE: boolean;
@@ -20,19 +20,20 @@ let ONLY_SYNC_MAIN_ISSUE: boolean;
 if (process.env.CI == "true") {
     console.log("Reading params from actions context...");
     // Read source and target repos
-    repo_source = core.getInput("repo_source")? core.getInput("repo_source") : github.context.repo.owner + '/' + github.context.repo.repo;
-    owner_source = repo_source.split('/')[0];
-    repo_source = repo_source.split('/')[1];
-    repo_target = core.getInput("repo_target");
-    owner_target = repo_target.split('/')[0];
-    repo_target = repo_target.split('/')[1];
+    const source = core.getInput("repo_source") ? core.getInput("repo_source") : github.context.repo.owner + '/' + github.context.repo.repo;
+    const target = core.getInput("repo_target");
+    [ownerSource, repoSource] = source.split("/");
+    [ownerTarget, repoTarget] = target.split("/");
+
     // Read token and params
-    GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+    githubToken = process.env.GITHUB_TOKEN;
+    githubTokenSource = process.env.GITHUB_TOKEN_SOURCE || githubToken;
+    githubTokenTarget = process.env.GITHUB_TOKEN_TARGET || githubToken;
     ONLY_SYNC_ON_LABEL = core.getInput("only_sync_on_label");
     CREATE_ISSUES_ON_EDIT = core.getBooleanInput("create_issues_on_edit");
     ONLY_SYNC_MAIN_ISSUE = core.getBooleanInput("only_sync_main_issue");
 
-    console.log(`Repos: ${owner_source}/${repo_source} -> ${owner_target}/${repo_target}`);
+    console.log(`Repos: ${ownerSource}/${repoSource} -> ${ownerTarget}/${repoTarget}`);
     console.log(`Only sync on label: ${ONLY_SYNC_ON_LABEL}`);
     console.log(`Do not sync comments: ${ONLY_SYNC_MAIN_ISSUE}`);
     console.log(`Create missing issues on edit events: ${CREATE_ISSUES_ON_EDIT}`)
@@ -42,42 +43,46 @@ if (process.env.CI == "true") {
     const launchArgs = process.argv;
     for (let i = 0; i < launchArgs.length; i++) {
         if (launchArgs[i] === "--owner_source") {
-            owner_source = launchArgs[i + 1];
+            ownerSource = launchArgs[i + 1];
         } else if (launchArgs[i] === "--repo_source") {
-            repo_source = launchArgs[i + 1];
+            repoSource = launchArgs[i + 1];
         } else if (launchArgs[i] === "--owner_target") {
-            owner_target = launchArgs[i + 1];
+            ownerTarget = launchArgs[i + 1];
         } else if (launchArgs[i] === "--repo_target") {
-            repo_target = launchArgs[i + 1];
+            repoTarget = launchArgs[i + 1];
         } else if (launchArgs[i] === "--github_token") {
-            GITHUB_TOKEN = launchArgs[i + 1];
+            githubToken = launchArgs[i + 1];
+        } else if (launchArgs[i] === "--github_token_source") {
+            githubTokenSource = launchArgs[i + 1];
+        } else if (launchArgs[i] === "--github_token_target") {
+            githubTokenTarget = launchArgs[i + 1];
         }
     }
 }
 
-// Init octokit
-const octokit = new Octokit({
-    auth: GITHUB_TOKEN,
-    // TODO: add ghes IP support here, or use github.octokit
+const octokitSource = new Octokit({
+    auth: githubTokenSource,
+    // TODO: add GHES IP support here, or use github.octokit
 });
 
+const octokitTarget = githubTokenSource == githubTokenTarget ? octokitSource : new Octokit({
+    auth: githubTokenTarget,
+    // TODO: add GHES IP support here, or use github.octokit
+});
+
+const gitHubSource = new GitHub(octokitSource, ownerSource, repoSource)
+const gitHubTarget = new GitHub(octokitTarget, ownerTarget, repoTarget)
+
 LabelSyncer.syncLabels(
-    octokit,
-    owner_source,
-    repo_source,
-    owner_target,
-    repo_target
+    gitHubSource,
+    gitHubTarget,
 ).then(() => console.log("Successfully synced labels")
 ).then(() => {
     const payload = require(process.env.GITHUB_EVENT_PATH as string);
     const number = (payload.issue || payload.pull_request || payload).number;
 
     // retrieve issue by owner, repo and number from octokit
-    octokit.request('GET /repos/{owner}/{repo}/issues/{number}', {
-        owner: owner_source,
-        repo: repo_source,
-        number: number,
-    }).then((response) => {
+    gitHubSource.getIssue(number).then((response) => {
         // Retrieved issue
         const issue: Issue = response.data;
 
@@ -99,42 +104,33 @@ LabelSyncer.syncLabels(
                 }
                 // Retrieve new comment
                 let issueComment: IssueComment;
-                octokit.request('GET /repos/{owner}/{repo}/issues/comments/{comment_id}', {
-                    owner: owner_source,
-                    repo: repo_source,
-                    issue_number: number,
-                    comment_id: payload.comment.id,
-                }).then((response) => {
+                gitHubSource.getComment(payload.comment.id)
+                .then((response) => {
                     issueComment = response.data;
-                    GitHub.getIssueNumberByTitle(
-                        octokit,
-                        owner_target,
-                        repo_target,
+                    gitHubTarget.getIssueNumberByTitle(
                         issue.title
                     ).then((targetIssueNumber) => {
                         // set target issue id for GH output
                         console.log(`target_issue_id:${targetIssueNumber}`)
                         core.setOutput('issue_id_target', targetIssueNumber);
                         // Transfer new comment to target issue
-                        octokit.request('POST /repos/{owner}/{repo}/issues/{issue_number}/comments', {
-                            owner: owner_target,
-                            repo: repo_target,
-                            issue_number: targetIssueNumber,
-                            body: issueComment.body || "",
-                        }).then((response) => {
+                        gitHubTarget.createComment(
+                            targetIssueNumber, 
+                            issueComment.body || "")
+                        .then((response) => {
                             // set target comment id for GH output
                             core.setOutput('comment_id_target', response.data.id);
                             console.info("Successfully created new comment on issue");
                         }).catch((err) => {
                             let msg = "Failed to create new comment on issue";
                             console.error(msg, err);
-                            core.setFailed(msg + " ${err}");
+                            core.setFailed(`${msg} ${err}`);
                         })
                     });
                 }).catch((err) => {
                     let msg = "Failed to retrieve issue comments"
                     console.error(msg, err);
-                    core.setFailed(msg + " ${err}");
+                    core.setFailed(`${msg} ${err}`);
                 });
                 break;
             case "issues":
@@ -142,35 +138,31 @@ LabelSyncer.syncLabels(
                 switch(payload.action) {
                     case "opened":
                         // Create new issue in target repo
-                        octokit.request('POST /repos/{owner}/{repo}/issues', {
-                            owner: owner_target,
-                            repo: repo_target,
-                            title: issue.title,
-                            body: issue.body,
-                            labels: issue.labels.map(label => label.name),
-                        })
+                        gitHubTarget.createIssue(
+                            issue.title, 
+                            issue.body, 
+                            issue.labels.map(label => label.name))
                         .then((response) => {
                             console.log("Created issue:", response.data.title);
                             // set target issue id for GH output
                             console.log(`target_issue_id:${response.data.id}`)
                             core.setOutput('issue_id_target', response.data.id);
                             // Add comment to source issue for tracking
-                            octokit.request('PATCH /repos/{owner}/{repo}/issues/{issue_number}', {
-                                owner: owner_source,
-                                repo: repo_source,
-                                issue_number: number,
-                                body: issue.body + "\n\nNote: This issue has been copied to " + response.data.html_url + " !",
-                                }).then(() => {
-                                    console.info("Successfully created comment on issue");
-                                }).catch((err) => {
-                                    let msg = "Failed to create comment on issue";
-                                    console.error(msg, err);
-                                    core.setFailed(msg + " ${err}");
-                                });
-                        }).catch((error) => {
+                            gitHubSource.editIssue(
+                                number, 
+                                null,
+                                issue.body + `\n\nNote: This issue has been copied to ${response.data.html_url}!`)
+                            .then(() => {
+                                console.info("Successfully created comment on issue");
+                            }).catch((err) => {
+                                let msg = "Failed to create comment on issue";
+                                console.error(msg, err);
+                                core.setFailed(`${msg} ${err}`);
+                            });
+                        }).catch((err) => {
                             let msg = "Error creating issue:"
-                            console.error(msg, error);
-                            core.setFailed(msg + " ${error}");
+                            console.error(msg, err);
+                            core.setFailed(`${msg} ${err}`);
                         });
                         break;
                     case "edited":
@@ -178,10 +170,7 @@ LabelSyncer.syncLabels(
                     case "reopened":
                     case "labeled":
                     case "unlabeled":
-                        GitHub.getIssueNumberByTitle(
-                            octokit,
-                            owner_target,
-                            repo_target,
+                        gitHubTarget.getIssueNumberByTitle(
                             issue.title
                         ).then((targetIssueNumber) => {
                             if (targetIssueNumber) {
@@ -190,46 +179,41 @@ LabelSyncer.syncLabels(
                                 core.setOutput('issue_id_target', targetIssueNumber);
                                 // Update issue in target repo
                                 // Update issue in target repo, identify target repo issue number by title match
-                                octokit.request('PATCH /repos/{owner}/{repo}/issues/{issue_number}', {
-                                    owner: owner_target,
-                                    repo: repo_target,
-                                    title: issue.title,
-                                    body: issue.body,
-                                    state: issue.state,
-                                    issue_number: targetIssueNumber,
-                                    labels: issue.labels.map(label => label.name),
-                                })
+                                gitHubTarget.editIssue(
+                                    targetIssueNumber, 
+                                    issue.title,
+                                    issue.body, 
+                                    issue.state,
+                                    issue.labels.map(label => label.name))
                                 .then((response) => {
                                     console.log("Updated issue:", response.data.title);
-                                }).catch((error) => {
-                                    console.error("Error updating issue:", error);
+                                }).catch((err) => {
+                                    console.error("Error updating issue:", err);
                                 });
                             } else {
                                 console.error("Could not find matching issue in target repo for title", issue.title);
 
                                 if (CREATE_ISSUES_ON_EDIT || payload.action == "labeled") {
                                     // Create issue anew
-                                    octokit.request('POST /repos/{owner}/{repo}/issues', {
-                                        owner: owner_target,
-                                        repo: repo_target,
-                                        title: issue.title,
-                                        body: issue.body,
-                                        labels: issue.labels.map(label => label.name),
-                                    }).then((response) => {
+                                    gitHubTarget.createIssue(
+                                        issue.title, 
+                                        issue.body, 
+                                        issue.labels.map(label => label.name))
+                                    .then((response) => {
                                         // set target issue id for GH output
                                         core.setOutput('issue_id_target', response.data.number);
                                         console.log("Created issue for lack of a match:", response.data.title);
-                                    }).catch((error) => {
+                                    }).catch((err) => {
                                         let msg = "Error creating issue for lack of a match:"
-                                        console.error(msg, error);
-                                        core.setFailed(msg + " ${error}");
+                                        console.error(msg, err);
+                                        core.setFailed(`${msg} ${err}`);
                                     });
                                 }
                             }
-                        }).catch((error) => {
+                        }).catch((err) => {
                             let msg = "Error finding issue in target repo:";
-                            console.error(msg, error);
-                            core.setFailed(msg + " ${error}");
+                            console.error(msg, err);
+                            core.setFailed(`${msg} ${err}`);
                         });
                         break;
                     default:
@@ -242,6 +226,6 @@ LabelSyncer.syncLabels(
         }
     }).catch((err) => {
         console.error("Failed to retrieve issue", err);
-        core.setFailed("Failed to retrieve issue ${err}");
+        core.setFailed(`Failed to retrieve issue ${err}`);
     });
 });
