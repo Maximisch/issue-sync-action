@@ -44015,6 +44015,19 @@ class GitHub {
             return response;
         });
     }
+    reactOnComment(commentId, reaction) {
+        return this.octokit
+            .request('POST /repos/{owner}/{repo}/issues/comments/{comment_id}/reactions', {
+            owner: this.owner,
+            repo: this.repo,
+            comment_id: commentId,
+            content: reaction,
+        })
+            .then(response => {
+            console.log(`Reacted on comment ${response.data.id} with ${reaction}`);
+            return response;
+        });
+    }
     createComment(issueNumber, body) {
         return this.octokit
             .request('POST /repos/{owner}/{repo}/issues/{issue_number}/comments', {
@@ -44038,6 +44051,32 @@ class GitHub {
             .then(response => {
             console.log(`Received comment ${response.data.html_url}`);
             return response;
+        });
+    }
+    editComment(commentId, body) {
+        return this.octokit
+            .request('PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}', {
+            owner: this.owner,
+            repo: this.repo,
+            comment_id: commentId,
+            body,
+        })
+            .then(response => {
+            console.log(`Updated comment ${response.data.html_url}`);
+            return response;
+        });
+    }
+    getComments(issueNumber) {
+        return this.octokit
+            .paginate('GET /repos/{owner}/{repo}/issues/{issue_number}/comments', {
+            owner: this.owner,
+            repo: this.repo,
+            issue_number: issueNumber,
+            per_page: 100,
+        })
+            .then(comments => {
+            console.log(`Received ${comments.length} comments`);
+            return comments;
         });
     }
     getIssueNumberByTitle(issueTitle) {
@@ -44097,6 +44136,7 @@ const github = __importStar(__nccwpck_require__(1908));
 const octokit_1 = __nccwpck_require__(1113);
 const github_1 = __nccwpck_require__(3037);
 const labelSyncer_1 = __nccwpck_require__(4769);
+const utils_1 = __nccwpck_require__(5938);
 let ownerSource = '';
 let repoSource = '';
 let ownerTarget = '';
@@ -44204,65 +44244,86 @@ gitHubSource
             // If flag for only syncing issue bodies is set and skip if true
             if (ONLY_SYNC_MAIN_ISSUE)
                 return;
-            if (payload.action !== 'created') {
-                console.warn('This will only sync new comments, events of current type are ignored', payload.action);
-                return;
-            }
-            // Retrieve new comment
-            let issueComment;
-            gitHubSource
-                .getComment(payload.comment.id)
-                .then(response => {
-                issueComment = response.data;
-                gitHubTarget.getIssueNumberByTitle(issue.title).then(targetIssueNumber => {
-                    // set target issue id for GH output
-                    console.log(`target_issue_id:${targetIssueNumber}`);
-                    core.setOutput('issue_id_target', targetIssueNumber);
-                    // Transfer new comment to target issue
-                    gitHubTarget
-                        .createComment(targetIssueNumber, issueComment.body || '')
+            switch (payload.action) {
+                case 'created':
+                case 'edited':
+                    // Retrieve new comment
+                    let issueComment;
+                    gitHubSource
+                        .getComment(payload.comment.id)
                         .then(response => {
-                        // set target comment id for GH output
-                        core.setOutput('comment_id_target', response.data.id);
-                        console.info('Successfully created new comment on issue');
+                        issueComment = response.data;
+                        const issueCommentLink = response.data.html_url;
+                        const issueCommentAuthor = response.data.user.login;
+                        const issueCommentBody = issueComment.body + utils_1.Utils.getCommentFooter(issueCommentAuthor, issueCommentLink);
+                        gitHubTarget.getIssueNumberByTitle(issue.title).then(targetIssueNumber => {
+                            // set target issue id for GH output
+                            console.log(`target_issue_id:${targetIssueNumber}`);
+                            core.setOutput('issue_id_target', targetIssueNumber);
+                            // Transfer new comment to target issue
+                            if (payload.action == 'created') {
+                                gitHubTarget
+                                    .createComment(targetIssueNumber, issueCommentBody)
+                                    .then(response => {
+                                    // set target comment id for GH output
+                                    core.setOutput('comment_id_target', response.data.id);
+                                    console.info('Successfully created new comment on issue');
+                                    gitHubSource.reactOnComment(issueComment.id, 'rocket');
+                                })
+                                    .catch(err => {
+                                    let msg = 'Failed to create new comment on issue';
+                                    console.error(msg, err);
+                                    core.setFailed(`${msg} ${err}`);
+                                });
+                            }
+                            else {
+                                gitHubTarget.getComments(targetIssueNumber).then(response => {
+                                    const targetComments = response;
+                                    const targetCommentMatch = utils_1.Utils.findTargetComment(issueComment, targetComments);
+                                    if (targetCommentMatch) {
+                                        console.log(`Found a match for source comment in target: ${targetCommentMatch.html_url}`);
+                                        gitHubTarget
+                                            .editComment(targetCommentMatch.id, issueCommentBody)
+                                            .then(response => {
+                                            // set target comment id for GH output
+                                            core.setOutput('comment_id_target', response.data.id);
+                                            console.info('Successfully updated a comment on issue');
+                                        })
+                                            .catch(err => {
+                                            let msg = 'Failed to update a comment on issue';
+                                            console.error(msg, err);
+                                            core.setFailed(`${msg} ${err}`);
+                                        });
+                                    }
+                                });
+                            }
+                        });
                     })
                         .catch(err => {
-                        let msg = 'Failed to create new comment on issue';
+                        let msg = 'Failed to retrieve issue comments';
                         console.error(msg, err);
                         core.setFailed(`${msg} ${err}`);
                     });
-                });
-            })
-                .catch(err => {
-                let msg = 'Failed to retrieve issue comments';
-                console.error(msg, err);
-                core.setFailed(`${msg} ${err}`);
-            });
+                // case 'deleted':
+                // break
+                default:
+                    console.warn('This will only sync new comments, events of current type are ignored', payload.action);
+                    return;
+            }
             break;
         case 'issues':
             // If the issue was updated, we need to sync labels
+            const issueBody = issue.body + utils_1.Utils.getIssueFooter(issue.html_url);
             switch (payload.action) {
                 case 'opened':
                     // Create new issue in target repo
                     gitHubTarget
-                        .createIssue(issue.title, issue.body, labels)
+                        .createIssue(issue.title, issueBody, labels)
                         .then(response => {
                         console.log('Created issue:', response.data.title);
                         // set target issue id for GH output
                         console.log(`target_issue_id:${response.data.id}`);
                         core.setOutput('issue_id_target', response.data.id);
-                        // Add comment to source issue for tracking
-                        gitHubSource
-                            .editIssue(number, null, issue.body +
-                            `\n\nNote: This issue has been copied to ${response.data.html_url}!`)
-                            .then(() => {
-                            console.info('Successfully created comment on issue');
-                        })
-                            .catch(err => {
-                            let msg = 'Failed to create comment on issue';
-                            console.error(msg, err);
-                            core.setFailed(`${msg} ${err}`);
-                        });
                     })
                         .catch(err => {
                         let msg = 'Error creating issue:';
@@ -44285,7 +44346,7 @@ gitHubSource
                             // Update issue in target repo
                             // Update issue in target repo, identify target repo issue number by title match
                             gitHubTarget
-                                .editIssue(targetIssueNumber, issue.title, issue.body, issue.state, labels)
+                                .editIssue(targetIssueNumber, issue.title, issueBody, issue.state, labels)
                                 .then(response => {
                                 console.log('Updated issue:', response.data.title);
                             })
@@ -44298,7 +44359,7 @@ gitHubSource
                             if (CREATE_ISSUES_ON_EDIT || payload.action == 'labeled') {
                                 // Create issue anew
                                 gitHubTarget
-                                    .createIssue(issue.title, issue.body, labels)
+                                    .createIssue(issue.title, issueBody, labels)
                                     .then(response => {
                                     // set target issue id for GH output
                                     core.setOutput('issue_id_target', response.data.number);
@@ -44390,6 +44451,39 @@ class LabelSyncer {
     }
 }
 exports.LabelSyncer = LabelSyncer;
+
+
+/***/ }),
+
+/***/ 5938:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.Utils = void 0;
+class Utils {
+    static findTargetComment(sourceComment, targetComments) {
+        const matchContent = Utils.getCommentFooter(sourceComment.user.login, sourceComment.html_url);
+        let result = null;
+        targetComments.forEach(targetComment => {
+            if (targetComment.body.includes(matchContent)) {
+                result = targetComment;
+                return;
+            }
+        });
+        return result;
+    }
+    static getCommentFooter(author, link) {
+        const template = '\n\n<sup>🤖 This comment from {{<author>}} is automatically synced from: [source]({{<link>}})</sup>';
+        return template.replace('{{<link>}}', link).replace('{{<author>}}', `@${author}`);
+    }
+    static getIssueFooter(link) {
+        const template = '\n\n<sup>🤖 This issue is automatically synced from: [source]({{<link>}})</sup>';
+        return template.replace('{{<link>}}', link);
+    }
+}
+exports.Utils = Utils;
 
 
 /***/ }),
