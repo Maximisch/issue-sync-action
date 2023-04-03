@@ -60,18 +60,10 @@ if (process.env.CI == "true") {
     }
 }
 
-const octokitSource = new Octokit({
-    auth: githubTokenSource,
-    // TODO: add GHES IP support here, or use github.octokit
-});
-
-const octokitTarget = githubTokenSource == githubTokenTarget ? octokitSource : new Octokit({
-    auth: githubTokenTarget,
-    // TODO: add GHES IP support here, or use github.octokit
-});
-
-const gitHubSource = new GitHub(octokitSource, ownerSource, repoSource)
-const gitHubTarget = new GitHub(octokitTarget, ownerTarget, repoTarget)
+const gitHubSource = new GitHub(new Octokit({auth: githubTokenSource}),
+    ownerSource, repoSource);
+const gitHubTarget = new GitHub(githubTokenSource == githubTokenTarget ? gitHubSource.octokit : new Octokit({auth: githubTokenTarget}),
+    ownerTarget, repoTarget);
 
 LabelSyncer.syncLabels(
     gitHubSource,
