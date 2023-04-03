@@ -1,10 +1,11 @@
 {
   "name": "issue-sync-action",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "GitHub Action to sync issues from one repository location to another repository. Can be used for syncing issues from a private development repo to a public roadmap repo.",
   "main": "index.ts",
   "scripts": {
-    "make-deploy": "tsc && ncc build --source-map --license licenses.txt",
+    "make-deploy": "npx prettier --write . && tsc && ncc build --source-map --license licenses.txt",
+    "format": "npx prettier --write .",
     "try-label-sync": "ts-node-dev index.ts --owner_source Braustuben --owner_target Braustuben --repo_source synctest-source --repo_target synctest-target",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -19,6 +20,7 @@
     "octokit": "^2.0.14"
   },
   "devDependencies": {
+    "prettier": "^2.8.7",
     "typescript": "^5.0.2"
   }
 }
