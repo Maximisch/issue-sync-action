@@ -89,6 +89,20 @@ export class GitHub {
             })
     }
 
+    public reactOnIssue(issueNumber: number, reaction: 'rocket' | 'eyes' | 'hooray'): Promise<any> {
+        return this.octokit
+            .request('POST /repos/{owner}/{repo}/issues/{issue_number}/reactions', {
+                owner: this.owner,
+                repo: this.repo,
+                issue_number: issueNumber,
+                content: reaction,
+            })
+            .then(response => {
+                console.log(`Reacted on issue ${response.data.id} with ${reaction}`)
+                return response
+            })
+    }
+
     public reactOnComment(commentId: number, reaction: 'rocket' | 'eyes' | 'hooray'): Promise<any> {
         return this.octokit
             .request('POST /repos/{owner}/{repo}/issues/comments/{comment_id}/reactions', {
@@ -140,6 +154,19 @@ export class GitHub {
             })
             .then(response => {
                 console.log(`Updated comment ${response.data.html_url}`)
+                return response
+            })
+    }
+
+    public deleteComment(commentId: number): Promise<any> {
+        return this.octokit
+            .request('DELETE /repos/{owner}/{repo}/issues/comments/{comment_id}', {
+                owner: this.owner,
+                repo: this.repo,
+                comment_id: commentId,
+            })
+            .then(response => {
+                console.log(`Updated comment ${commentId}`)
                 return response
             })
     }

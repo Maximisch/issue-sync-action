@@ -15,6 +15,8 @@ let githubTokenTarget = ''
 let githubToken = ''
 let additionalIssueLabels: string[] = []
 let syncRepoLabels: boolean
+let targetIssueFooterTemplate = ''
+let targetCommentFooterTemplate = ''
 let ONLY_SYNC_ON_LABEL: string
 let CREATE_ISSUES_ON_EDIT: boolean
 let ONLY_SYNC_MAIN_ISSUE: boolean
@@ -40,6 +42,8 @@ if (process.env.CI == 'true') {
         .map(x => x.trim())
         .filter(x => x)
     syncRepoLabels = core.getBooleanInput('sync_repo_labels')
+    targetIssueFooterTemplate = core.getInput('target_issue_footer_template')
+    targetCommentFooterTemplate = core.getInput('target_comment_footer_template')
     ONLY_SYNC_ON_LABEL = core.getInput('only_sync_on_label')
     CREATE_ISSUES_ON_EDIT = core.getBooleanInput('create_issues_on_edit')
     ONLY_SYNC_MAIN_ISSUE = core.getBooleanInput('only_sync_main_issue')
@@ -50,6 +54,8 @@ if (process.env.CI == 'true') {
     console.log(`Create missing issues on edit events: ${CREATE_ISSUES_ON_EDIT}`)
     console.log(`Additional labels for target issue: ${additionalIssueLabels}`)
     console.log(`Sync labels from source to target repo: ${syncRepoLabels}`)
+    console.log(`Target issues footer template: ${targetIssueFooterTemplate}`)
+    console.log(`Target comments footer template: ${targetCommentFooterTemplate}`)
 } else {
     console.log('Reading params from CLI context...')
     // read all variables from launch parameters
@@ -76,6 +82,10 @@ if (process.env.CI == 'true') {
                 .filter(x => x)
         } else if (launchArgs[i] === '--sync_repo_labels') {
             syncRepoLabels = launchArgs[i + 1].toLowerCase() == 'true'
+        } else if (launchArgs[i] === '--target_issue_footer_template') {
+            targetIssueFooterTemplate = launchArgs[i + 1]
+        } else if (launchArgs[i] === '--target_comment_footer_template') {
+            targetCommentFooterTemplate = launchArgs[i + 1]
         }
     }
 }
@@ -87,6 +97,8 @@ const gitHubTarget = new GitHub(
     repoTarget
 )
 
+let utils = new Utils(targetIssueFooterTemplate, targetCommentFooterTemplate)
+
 if (syncRepoLabels) {
     LabelSyncer.syncLabels(gitHubSource, gitHubTarget)
         .then(() => console.log('Successfully synced labels'))
@@ -97,6 +109,7 @@ if (syncRepoLabels) {
 
 const payload = require(process.env.GITHUB_EVENT_PATH as string)
 const number = (payload.issue || payload.pull_request || payload).number
+const action: string = payload.action
 
 // retrieve issue by owner, repo and number from octokit
 gitHubSource
@@ -106,7 +119,7 @@ gitHubSource
         const issue: Issue = response.data
         const labels: string[] = [...new Set(issue.labels.map(label => label.name).concat(additionalIssueLabels))]
 
-        console.log(`Found issue: ${issue.title}`)
+        console.log(`Found issue ${number}: ${issue.title}`)
         console.log(`Labels: ${labels}`)
 
         // If flag for only syncing labelled issues is set, check if issue has label of specified sync type
@@ -117,88 +130,42 @@ gitHubSource
                 // If flag for only syncing issue bodies is set and skip if true
                 if (ONLY_SYNC_MAIN_ISSUE) return
 
-                switch (payload.action) {
-                    case 'created':
-                    case 'edited':
-                        // Retrieve new comment
-                        let issueComment: IssueComment
-                        gitHubSource
-                            .getComment(payload.comment.id)
-                            .then(response => {
-                                issueComment = response.data
-                                const issueCommentLink = response.data.html_url
-                                const issueCommentAuthor = response.data.user.login
-                                const issueCommentBody =
-                                    issueComment.body + Utils.getCommentFooter(issueCommentAuthor, issueCommentLink)
+                gitHubTarget.getIssueNumberByTitle(issue.title).then(targetIssueNumber => {
+                    console.log(`target_issue_id:${targetIssueNumber}`)
+                    core.setOutput('issue_id_target', targetIssueNumber)
 
-                                gitHubTarget.getIssueNumberByTitle(issue.title).then(targetIssueNumber => {
-                                    // set target issue id for GH output
-                                    console.log(`target_issue_id:${targetIssueNumber}`)
-                                    core.setOutput('issue_id_target', targetIssueNumber)
-                                    // Transfer new comment to target issue
+                    const sourceComment: IssueComment = payload.comment
+                    const issueCommentBody = utils.getIssueCommentTargetBody(sourceComment)
 
-                                    if (payload.action == 'created') {
-                                        gitHubTarget
-                                            .createComment(targetIssueNumber, issueCommentBody)
-                                            .then(response => {
-                                                // set target comment id for GH output
-                                                core.setOutput('comment_id_target', response.data.id)
-                                                console.info('Successfully created new comment on issue')
-                                                gitHubSource.reactOnComment(issueComment.id, 'rocket')
-                                            })
-                                            .catch(err => {
-                                                let msg = 'Failed to create new comment on issue'
-                                                console.error(msg, err)
-                                                core.setFailed(`${msg} ${err}`)
-                                            })
-                                    } else {
-                                        gitHubTarget.getComments(targetIssueNumber).then(response => {
-                                            const targetComments: Array<IssueComment> = response
-                                            const targetCommentMatch = Utils.findTargetComment(
-                                                issueComment,
-                                                targetComments
-                                            )
-
-                                            if (targetCommentMatch) {
-                                                console.log(
-                                                    `Found a match for source comment in target: ${targetCommentMatch.html_url}`
-                                                )
-                                                gitHubTarget
-                                                    .editComment(targetCommentMatch.id, issueCommentBody)
-                                                    .then(response => {
-                                                        // set target comment id for GH output
-                                                        core.setOutput('comment_id_target', response.data.id)
-                                                        console.info('Successfully updated a comment on issue')
-                                                    })
-                                                    .catch(err => {
-                                                        let msg = 'Failed to update a comment on issue'
-                                                        console.error(msg, err)
-                                                        core.setFailed(`${msg} ${err}`)
-                                                    })
-                                            }
-                                        })
-                                    }
-                                })
-                            })
-                            .catch(err => {
-                                let msg = 'Failed to retrieve issue comments'
-                                console.error(msg, err)
-                                core.setFailed(`${msg} ${err}`)
-                            })
-                    // case 'deleted':
-                    // break
-                    default:
-                        console.warn(
-                            'This will only sync new comments, events of current type are ignored',
-                            payload.action
-                        )
-                        return
-                }
-
+                    if (action == 'created') {
+                        gitHubTarget.createComment(targetIssueNumber, issueCommentBody).then(response => {
+                            // set target comment id for GH output
+                            core.setOutput('comment_id_target', response.data.id)
+                            gitHubSource.reactOnComment(sourceComment.id, 'rocket')
+                            console.info('Successfully created new comment on issue')
+                        })
+                    } else {
+                        // edited or deleted
+                        gitHubTarget.getComments(targetIssueNumber).then(targetComments => {
+                            const targetCommentMatch = utils.findTargetComment(sourceComment, targetComments)
+                            if (targetCommentMatch) {
+                                if (action == 'edited') {
+                                    gitHubTarget.editComment(targetCommentMatch.id, issueCommentBody).then(response => {
+                                        // set target comment id for GH output
+                                        core.setOutput('comment_id_target', response.data.id)
+                                        console.info('Successfully updated a comment on issue')
+                                    })
+                                } else if (action == 'deleted') {
+                                    gitHubTarget.deleteComment(targetCommentMatch.id)
+                                }
+                            }
+                        })
+                    }
+                })
                 break
             case 'issues':
                 // If the issue was updated, we need to sync labels
-                const issueBody = issue.body + Utils.getIssueFooter(issue.html_url)
+                const issueBody = utils.getIssueTargetBody(issue)
                 switch (payload.action) {
                     case 'opened':
                         // Create new issue in target repo
@@ -209,6 +176,7 @@ gitHubSource
                                 // set target issue id for GH output
                                 console.log(`target_issue_id:${response.data.id}`)
                                 core.setOutput('issue_id_target', response.data.id)
+                                gitHubSource.reactOnIssue(number, 'rocket')
                             })
                             .catch(err => {
                                 let msg = 'Error creating issue:'
@@ -234,6 +202,7 @@ gitHubSource
                                         .editIssue(targetIssueNumber, issue.title, issueBody, issue.state, labels)
                                         .then(response => {
                                             console.log('Updated issue:', response.data.title)
+                                            gitHubSource.reactOnIssue(number, 'rocket')
                                         })
                                         .catch(err => {
                                             console.error('Error updating issue:', err)

@@ -1,29 +1,48 @@
-import { IssueComment } from './issue'
+import { Issue, IssueComment } from './issue'
 
 export class Utils {
-    public static findTargetComment(
-        sourceComment: IssueComment,
-        targetComments: Array<IssueComment>
-    ): IssueComment | null {
-        const matchContent = Utils.getCommentFooter(sourceComment.user.login, sourceComment.html_url)
-        let result = null
+    targetIssueFooterTemplate: string
+    targetCommentFooterTemplate: string
+
+    constructor(targetIssueFooterTemplate: string, targetCommentFooterTemplate: string) {
+        this.targetCommentFooterTemplate = targetCommentFooterTemplate
+        this.targetIssueFooterTemplate = targetIssueFooterTemplate
+    }
+
+    public findTargetComment(sourceComment: IssueComment, targetComments: Array<IssueComment>): IssueComment {
+        const matchContent = this.getIssueCommentFooter(sourceComment)
+        let result: IssueComment = null
         targetComments.forEach(targetComment => {
-            if (targetComment.body.includes(matchContent)) {
+            if (matchContent.trim() && targetComment.body.includes(matchContent)) {
                 result = targetComment
                 return
             }
         })
+
+        const message = result
+            ? `Found a match for the source comment ${sourceComment.id} in the target: ${result.id}`
+            : `Could not find a match for the source comment ${sourceComment.id} in the target`
+        console.info(message)
         return result
     }
 
-    public static getCommentFooter(author: string, link: string): string {
-        const template =
-            '\n\n<sup>🤖 This comment from {{<author>}} is automatically synced from: [source]({{<link>}})</sup>'
-        return template.replace('{{<link>}}', link).replace('{{<author>}}', `@${author}`)
+    public getIssueCommentFooter(issueComment: IssueComment): string {
+        return this.targetCommentFooterTemplate
+            .replace('{{<link>}}', issueComment.html_url)
+            .replace('{{<author>}}', `@${issueComment.user.login}`)
     }
 
-    public static getIssueFooter(link: string): string {
-        const template = '\n\n<sup>🤖 This issue is automatically synced from: [source]({{<link>}})</sup>'
-        return template.replace('{{<link>}}', link)
+    public getIssueCommentTargetBody(issueComment: IssueComment): string {
+        const footer = this.getIssueCommentFooter(issueComment)
+        return footer ? issueComment.body + '\n\n' + footer : issueComment.body
+    }
+
+    public getIssueFooter(issue: Issue): string {
+        return this.targetIssueFooterTemplate.replace('{{<link>}}', issue.html_url)
+    }
+
+    public getIssueTargetBody(issue: Issue): string {
+        const footer = this.getIssueFooter(issue)
+        return footer ? issue.body + '\n\n' + footer : issue.body
     }
 }
