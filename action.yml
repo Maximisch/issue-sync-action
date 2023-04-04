@@ -22,6 +22,14 @@ inputs:
     description: 'Whether on edit events an issue should be created if it is missing in the target project'
     required: false
     default: "true"
+  additional_issue_labels:
+    description: 'Additional labels to add to the target issues on sync (comma-separated)'
+    required: false
+    default: ""
+  sync_repo_labels:
+    description: 'Whether to sync the labels from source to target repository'
+    required: false
+    default: "true"
 outputs:
   issue_id_target:
     description: 'The issue id of the found issue with the same name in the target repository, empty if not found'
