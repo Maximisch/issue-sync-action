@@ -103,7 +103,7 @@ gitHubSource
     .then(response => {
         // Retrieved issue
         const issue: Issue = response.data
-        const labels: string[] = issue.labels.map(label => label.name).concat(additionalIssueLabels)
+        const labels: string[] = [...new Set(issue.labels.map(label => label.name).concat(additionalIssueLabels))]
 
         console.log(`Found issue: ${issue.title}`)
         console.log(`Labels: ${labels}`)

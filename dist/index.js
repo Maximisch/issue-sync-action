@@ -44193,7 +44193,7 @@ gitHubSource
     .then(response => {
     // Retrieved issue
     const issue = response.data;
-    const labels = issue.labels.map(label => label.name).concat(additionalIssueLabels);
+    const labels = [...new Set(issue.labels.map(label => label.name).concat(additionalIssueLabels))];
     console.log(`Found issue: ${issue.title}`);
     console.log(`Labels: ${labels}`);
     // If flag for only syncing labelled issues is set, check if issue has label of specified sync type
