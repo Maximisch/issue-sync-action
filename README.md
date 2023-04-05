@@ -36,6 +36,7 @@ jobs:
         additional_issue_labels: "label1,label2"
         target_issue_footer_template: '<sup>:robot: This issue is automatically synced from: [source]({{<link>}})</sup>'
         target_comment_footer_template: '<sup>:robot: This comment from {{<author>}} is automatically synced from: [source]({{<link>}})</sup>'
+        skip_comment_sync_keywords: '[skip-sync],[private]'
       env:
         GITHUB_TOKEN_SOURCE: ${{ secrets.GH_TOKEN_FOR_SOURCE }}
         GITHUB_TOKEN_TARGET: ${{ secrets.GH_TOKEN_FOR_TARGET }}
