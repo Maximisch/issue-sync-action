@@ -199,7 +199,14 @@ gitHubSource
                                     // Update issue in target repo
                                     // Update issue in target repo, identify target repo issue number by title match
                                     gitHubTarget
-                                        .editIssue(targetIssueNumber, issue.title, issueBody, issue.state, labels)
+                                        .editIssue(
+                                            targetIssueNumber,
+                                            issue.title,
+                                            issueBody,
+                                            issue.state,
+                                            issue.state_reason,
+                                            labels
+                                        )
                                         .then(response => {
                                             console.log('Updated issue:', response.data.title)
                                             gitHubSource.reactOnIssue(number, 'rocket')

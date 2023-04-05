@@ -58,6 +58,7 @@ export class GitHub {
         title: string,
         body: string,
         state?: 'open' | 'closed',
+        state_reason?: 'completed' | 'not_planned' | 'reopened' | null,
         labels?: string[]
     ): Promise<any> {
         return this.octokit
@@ -68,6 +69,7 @@ export class GitHub {
                 body,
                 title,
                 state,
+                state_reason,
                 labels,
             })
             .then(response => {

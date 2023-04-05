@@ -4,6 +4,7 @@ export class Issue {
     authors: string[]
     body: string
     state: 'open' | 'closed'
+    state_reason: 'completed' | 'not_planned' | 'reopened' | null
     html_url: string
     labels: Label[]
 }

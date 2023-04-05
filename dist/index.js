@@ -43987,7 +43987,7 @@ class GitHub {
             return response;
         });
     }
-    editIssue(issueNumber, title, body, state, labels) {
+    editIssue(issueNumber, title, body, state, state_reason, labels) {
         return this.octokit
             .request('PATCH /repos/{owner}/{repo}/issues/{issue_number}', {
             owner: this.owner,
@@ -43996,6 +43996,7 @@ class GitHub {
             body,
             title,
             state,
+            state_reason,
             labels,
         })
             .then(response => {
@@ -44352,7 +44353,7 @@ gitHubSource
                             // Update issue in target repo
                             // Update issue in target repo, identify target repo issue number by title match
                             gitHubTarget
-                                .editIssue(targetIssueNumber, issue.title, issueBody, issue.state, labels)
+                                .editIssue(targetIssueNumber, issue.title, issueBody, issue.state, issue.state_reason, labels)
                                 .then(response => {
                                 console.log('Updated issue:', response.data.title);
                                 gitHubSource.reactOnIssue(number, 'rocket');
