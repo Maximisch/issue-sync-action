@@ -1,21 +1,25 @@
 import { Issue, IssueComment } from './issue'
+import { GitHub } from './github'
 
 export class Utils {
     targetIssueFooterTemplate: string
     targetCommentFooterTemplate: string
     skipCommentSyncKeywords: string[]
     skippedCommentMessage: string
+    issueCreatedCommentTemplate: string
 
     constructor(
         targetIssueFooterTemplate: string,
         targetCommentFooterTemplate: string,
         skipCommentSyncKeywords: string[],
-        skippedCommentMessage: string
+        skippedCommentMessage: string,
+        issueCreatedCommentTemplate: string
     ) {
         this.targetCommentFooterTemplate = targetCommentFooterTemplate
         this.targetIssueFooterTemplate = targetIssueFooterTemplate
         this.skipCommentSyncKeywords = skipCommentSyncKeywords
         this.skippedCommentMessage = skippedCommentMessage
+        this.issueCreatedCommentTemplate = issueCreatedCommentTemplate
     }
 
     public findTargetComment(sourceComment: IssueComment, targetComments: Array<IssueComment>): IssueComment {
@@ -41,6 +45,21 @@ export class Utils {
             .replace('{{<author>}}', `@${issueComment.user.login}`)
     }
 
+    public getIssueCreatedComment(gitHub: GitHub, issueId: number): string {
+        return this.issueCreatedCommentTemplate.replace(
+            '{{<link>}}',
+            `https://github.com/${gitHub.owner}/${gitHub.repo}/issues/${issueId}`
+        )
+    }
+
+    public getIssueCreatedCommentTemplate(gitHub: GitHub, body: string): string {
+        // replaces a link to the target issue with {{<link>}} placeholder for
+        // message matching (template unrender)
+        const baseLinkTemplate = `https://github.com/${gitHub.owner}/${gitHub.repo}/issues/`
+        const regex = new RegExp(baseLinkTemplate.replace('/', '\\/') + '\\d+')
+        return body.replace(regex, '{{<link>}}')
+    }
+
     private getIssueCommentBodyFiltered(issueComment: IssueComment): string {
         for (let i = 0; i < this.skipCommentSyncKeywords.length; i++) {
             if (issueComment.body.includes(this.skipCommentSyncKeywords[i])) {
@@ -62,7 +81,7 @@ export class Utils {
 
     public getIssueTargetBody(issue: Issue): string {
         const footer = this.getIssueFooter(issue)
-        const body = issue.body
+        const body = issue.body || ''
         return footer ? body + '\n\n' + footer : body
     }
 }
