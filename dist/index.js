@@ -44087,7 +44087,7 @@ class GitHub {
             comment_id: commentId,
         })
             .then(response => {
-            console.log(`Updated comment ${commentId}`);
+            console.log(`Deleted comment ${commentId}`);
             return response;
         });
     }
@@ -44319,7 +44319,7 @@ gitHubSource
         case 'issues':
             // If the issue was updated, we need to sync labels
             const issueBody = utils.getIssueTargetBody(issue);
-            switch (payload.action) {
+            switch (action) {
                 case 'opened':
                     // Create new issue in target repo
                     gitHubTarget
@@ -44363,7 +44363,7 @@ gitHubSource
                         }
                         else {
                             console.error('Could not find matching issue in target repo for title', issue.title);
-                            if (CREATE_ISSUES_ON_EDIT || payload.action == 'labeled') {
+                            if (CREATE_ISSUES_ON_EDIT || action == 'labeled') {
                                 // Create issue anew
                                 gitHubTarget
                                     .createIssue(issue.title, issueBody, labels)
@@ -44387,7 +44387,7 @@ gitHubSource
                     });
                     break;
                 default:
-                    console.log('We are currently not handling events of type ' + payload.action);
+                    console.log(`We are currently not handling events of type ${action}`);
                     break;
             }
             break;

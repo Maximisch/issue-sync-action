@@ -20,7 +20,7 @@ on:
   issues:
     types: [closed, deleted, edited, labeled, opened, reopened, unlabeled]
   issue_comment:
-    types: [created]
+    types: [created, edited, deleted]  # if only_sync_main_issue: false
 
 jobs:
   issue-sync:
@@ -32,7 +32,7 @@ jobs:
       with:
         repo_target: "MyOrg/public-roadmap"  # The target repository
         only_sync_on_label: "publicise"  # Only syncs issues with this label set
-        only_sync_main_issue: true  # Excludes comments
+        only_sync_main_issue: false  # Sync comments in addition to the issue
         additional_issue_labels: "label1,label2"
         target_issue_footer_template: '<sup>:robot: This issue is automatically synced from: [source]({{<link>}})</sup>'
         target_comment_footer_template: '<sup>:robot: This comment from {{<author>}} is automatically synced from: [source]({{<link>}})</sup>'

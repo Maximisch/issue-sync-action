@@ -166,7 +166,7 @@ export class GitHub {
                 comment_id: commentId,
             })
             .then(response => {
-                console.log(`Updated comment ${commentId}`)
+                console.log(`Deleted comment ${commentId}`)
                 return response
             })
     }
