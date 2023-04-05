@@ -89,6 +89,34 @@ export class GitHub {
             })
     }
 
+    public reactOnIssue(issueNumber: number, reaction: 'rocket' | 'eyes' | 'hooray'): Promise<any> {
+        return this.octokit
+            .request('POST /repos/{owner}/{repo}/issues/{issue_number}/reactions', {
+                owner: this.owner,
+                repo: this.repo,
+                issue_number: issueNumber,
+                content: reaction,
+            })
+            .then(response => {
+                console.log(`Reacted on issue ${response.data.id} with ${reaction}`)
+                return response
+            })
+    }
+
+    public reactOnComment(commentId: number, reaction: 'rocket' | 'eyes' | 'hooray'): Promise<any> {
+        return this.octokit
+            .request('POST /repos/{owner}/{repo}/issues/comments/{comment_id}/reactions', {
+                owner: this.owner,
+                repo: this.repo,
+                comment_id: commentId,
+                content: reaction,
+            })
+            .then(response => {
+                console.log(`Reacted on comment ${response.data.id} with ${reaction}`)
+                return response
+            })
+    }
+
     public createComment(issueNumber: number, body: string): Promise<any> {
         return this.octokit
             .request('POST /repos/{owner}/{repo}/issues/{issue_number}/comments', {
@@ -113,6 +141,47 @@ export class GitHub {
             .then(response => {
                 console.log(`Received comment ${response.data.html_url}`)
                 return response
+            })
+    }
+
+    public editComment(commentId: number, body: string): Promise<any> {
+        return this.octokit
+            .request('PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}', {
+                owner: this.owner,
+                repo: this.repo,
+                comment_id: commentId,
+                body,
+            })
+            .then(response => {
+                console.log(`Updated comment ${response.data.html_url}`)
+                return response
+            })
+    }
+
+    public deleteComment(commentId: number): Promise<any> {
+        return this.octokit
+            .request('DELETE /repos/{owner}/{repo}/issues/comments/{comment_id}', {
+                owner: this.owner,
+                repo: this.repo,
+                comment_id: commentId,
+            })
+            .then(response => {
+                console.log(`Deleted comment ${commentId}`)
+                return response
+            })
+    }
+
+    public getComments(issueNumber: number): Promise<Array<any>> {
+        return this.octokit
+            .paginate('GET /repos/{owner}/{repo}/issues/{issue_number}/comments', {
+                owner: this.owner,
+                repo: this.repo,
+                issue_number: issueNumber,
+                per_page: 100,
+            })
+            .then(comments => {
+                console.log(`Received ${comments.length} comments`)
+                return comments
             })
     }
 

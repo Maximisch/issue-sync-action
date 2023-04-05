@@ -26,6 +26,13 @@ inputs:
     description: 'Additional labels to add to the target issues on sync (comma-separated)'
     required: false
     default: ""
+  target_issue_footer_template:
+    description: 'Template to be added to every copied issue body. `<<{link}>>` is replaced with source issue URL'
+    required: false
+    default: "<sup>:robot: This issue is automatically synced from: [source]({{<link>}})</sup>"
+  target_comment_footer_template:
+    description: 'Template to be added to every copied comments body. Has to be non-empty to support comment editing and deletion. `<<{link}>>` is replaced with source comment URL, `<<{author}>>` with source comment author GitHub name'
+    default: "<sup>:robot: This comment from {{<author>}} is automatically synced from: [source]({{<link>}})</sup>"
   sync_repo_labels:
     description: 'Whether to sync the labels from source to target repository'
     required: false

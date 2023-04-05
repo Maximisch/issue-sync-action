@@ -4,12 +4,19 @@ export class Issue {
     authors: string[]
     body: string
     state: 'open' | 'closed'
+    html_url: string
     labels: Label[]
+}
+
+export class User {
+    login: string
 }
 
 export class IssueComment {
     id: number
     body?: string
+    html_url: string
+    user: User
 }
 
 export class Label {
