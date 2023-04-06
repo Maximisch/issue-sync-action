@@ -3,10 +3,19 @@ import { Issue, IssueComment } from './issue'
 export class Utils {
     targetIssueFooterTemplate: string
     targetCommentFooterTemplate: string
+    skipCommentSyncKeywords: string[]
+    skippedCommentMessage: string
 
-    constructor(targetIssueFooterTemplate: string, targetCommentFooterTemplate: string) {
+    constructor(
+        targetIssueFooterTemplate: string,
+        targetCommentFooterTemplate: string,
+        skipCommentSyncKeywords: string[],
+        skippedCommentMessage: string
+    ) {
         this.targetCommentFooterTemplate = targetCommentFooterTemplate
         this.targetIssueFooterTemplate = targetIssueFooterTemplate
+        this.skipCommentSyncKeywords = skipCommentSyncKeywords
+        this.skippedCommentMessage = skippedCommentMessage
     }
 
     public findTargetComment(sourceComment: IssueComment, targetComments: Array<IssueComment>): IssueComment {
@@ -32,9 +41,19 @@ export class Utils {
             .replace('{{<author>}}', `@${issueComment.user.login}`)
     }
 
+    private getIssueCommentBodyFiltered(issueComment: IssueComment): string {
+        for (let i = 0; i < this.skipCommentSyncKeywords.length; i++) {
+            if (issueComment.body.includes(this.skipCommentSyncKeywords[i])) {
+                return this.skippedCommentMessage
+            }
+        }
+        return issueComment.body
+    }
+
     public getIssueCommentTargetBody(issueComment: IssueComment): string {
         const footer = this.getIssueCommentFooter(issueComment)
-        return footer ? issueComment.body + '\n\n' + footer : issueComment.body
+        const body = this.getIssueCommentBodyFiltered(issueComment)
+        return footer ? body + '\n\n' + footer : body
     }
 
     public getIssueFooter(issue: Issue): string {
@@ -43,6 +62,7 @@ export class Utils {
 
     public getIssueTargetBody(issue: Issue): string {
         const footer = this.getIssueFooter(issue)
-        return footer ? issue.body + '\n\n' + footer : issue.body
+        const body = issue.body
+        return footer ? body + '\n\n' + footer : body
     }
 }

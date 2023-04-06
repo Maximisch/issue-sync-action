@@ -44171,6 +44171,8 @@ let githubTokenSource = '';
 let githubTokenTarget = '';
 let githubToken = '';
 let additionalIssueLabels = [];
+let skipCommentSyncKeywords = [];
+let skippedCommentMessage;
 let syncRepoLabels;
 let targetIssueFooterTemplate = '';
 let targetCommentFooterTemplate = '';
@@ -44199,6 +44201,12 @@ if (process.env.CI == 'true') {
     syncRepoLabels = core.getBooleanInput('sync_repo_labels');
     targetIssueFooterTemplate = core.getInput('target_issue_footer_template');
     targetCommentFooterTemplate = core.getInput('target_comment_footer_template');
+    skipCommentSyncKeywords = core
+        .getInput('skip_comment_sync_keywords')
+        .split(',')
+        .map(x => x.trim())
+        .filter(x => x);
+    skippedCommentMessage = core.getInput('skipped_comment_message');
     ONLY_SYNC_ON_LABEL = core.getInput('only_sync_on_label');
     CREATE_ISSUES_ON_EDIT = core.getBooleanInput('create_issues_on_edit');
     ONLY_SYNC_MAIN_ISSUE = core.getBooleanInput('only_sync_main_issue');
@@ -44252,11 +44260,20 @@ else {
         else if (launchArgs[i] === '--target_comment_footer_template') {
             targetCommentFooterTemplate = launchArgs[i + 1];
         }
+        else if (launchArgs[i] === '--skip_comment_sync_keywords') {
+            skipCommentSyncKeywords = launchArgs[i + 1]
+                .split(',')
+                .map(x => x.trim())
+                .filter(x => x);
+        }
+        else if (launchArgs[i] == '--skipped_comment_message') {
+            skippedCommentMessage = core.getInput('skipped_comment_message');
+        }
     }
 }
 const gitHubSource = new github_1.GitHub(new octokit_1.Octokit({ auth: githubTokenSource }), ownerSource, repoSource);
 const gitHubTarget = new github_1.GitHub(githubTokenSource == githubTokenTarget ? gitHubSource.octokit : new octokit_1.Octokit({ auth: githubTokenTarget }), ownerTarget, repoTarget);
-let utils = new utils_1.Utils(targetIssueFooterTemplate, targetCommentFooterTemplate);
+let utils = new utils_1.Utils(targetIssueFooterTemplate, targetCommentFooterTemplate, skipCommentSyncKeywords, skippedCommentMessage);
 if (syncRepoLabels) {
     labelSyncer_1.LabelSyncer.syncLabels(gitHubSource, gitHubTarget)
         .then(() => console.log('Successfully synced labels'))
@@ -44471,9 +44488,11 @@ exports.LabelSyncer = LabelSyncer;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.Utils = void 0;
 class Utils {
-    constructor(targetIssueFooterTemplate, targetCommentFooterTemplate) {
+    constructor(targetIssueFooterTemplate, targetCommentFooterTemplate, skipCommentSyncKeywords, skippedCommentMessage) {
         this.targetCommentFooterTemplate = targetCommentFooterTemplate;
         this.targetIssueFooterTemplate = targetIssueFooterTemplate;
+        this.skipCommentSyncKeywords = skipCommentSyncKeywords;
+        this.skippedCommentMessage = skippedCommentMessage;
     }
     findTargetComment(sourceComment, targetComments) {
         const matchContent = this.getIssueCommentFooter(sourceComment);
@@ -44495,16 +44514,26 @@ class Utils {
             .replace('{{<link>}}', issueComment.html_url)
             .replace('{{<author>}}', `@${issueComment.user.login}`);
     }
+    getIssueCommentBodyFiltered(issueComment) {
+        for (let i = 0; i < this.skipCommentSyncKeywords.length; i++) {
+            if (issueComment.body.includes(this.skipCommentSyncKeywords[i])) {
+                return this.skippedCommentMessage;
+            }
+        }
+        return issueComment.body;
+    }
     getIssueCommentTargetBody(issueComment) {
         const footer = this.getIssueCommentFooter(issueComment);
-        return footer ? issueComment.body + '\n\n' + footer : issueComment.body;
+        const body = this.getIssueCommentBodyFiltered(issueComment);
+        return footer ? body + '\n\n' + footer : body;
     }
     getIssueFooter(issue) {
         return this.targetIssueFooterTemplate.replace('{{<link>}}', issue.html_url);
     }
     getIssueTargetBody(issue) {
         const footer = this.getIssueFooter(issue);
-        return footer ? issue.body + '\n\n' + footer : issue.body;
+        const body = issue.body;
+        return footer ? body + '\n\n' + footer : body;
     }
 }
 exports.Utils = Utils;

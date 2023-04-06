@@ -37,6 +37,14 @@ inputs:
     description: 'Whether to sync the labels from source to target repository'
     required: false
     default: "true"
+  skip_comment_sync_keywords:
+    description: 'A comma-separated list of strings that denote that the text of the comment should not be copied in the target issue (e.g. sharing a confidential information)'
+    required: false
+    default: ""
+  skipped_comment_message:
+    description: 'A target commit message displayed instead of the original one in case any of skip_comment_sync_keywords is mentioned in the source comment'
+    required: false
+    default: "_The source comment contained sensitive information and was not copied_"
 outputs:
   issue_id_target:
     description: 'The issue id of the found issue with the same name in the target repository, empty if not found'

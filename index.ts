@@ -14,6 +14,8 @@ let githubTokenSource = ''
 let githubTokenTarget = ''
 let githubToken = ''
 let additionalIssueLabels: string[] = []
+let skipCommentSyncKeywords: string[] = []
+let skippedCommentMessage: string
 let syncRepoLabels: boolean
 let targetIssueFooterTemplate = ''
 let targetCommentFooterTemplate = ''
@@ -44,6 +46,12 @@ if (process.env.CI == 'true') {
     syncRepoLabels = core.getBooleanInput('sync_repo_labels')
     targetIssueFooterTemplate = core.getInput('target_issue_footer_template')
     targetCommentFooterTemplate = core.getInput('target_comment_footer_template')
+    skipCommentSyncKeywords = core
+        .getInput('skip_comment_sync_keywords')
+        .split(',')
+        .map(x => x.trim())
+        .filter(x => x)
+    skippedCommentMessage = core.getInput('skipped_comment_message')
     ONLY_SYNC_ON_LABEL = core.getInput('only_sync_on_label')
     CREATE_ISSUES_ON_EDIT = core.getBooleanInput('create_issues_on_edit')
     ONLY_SYNC_MAIN_ISSUE = core.getBooleanInput('only_sync_main_issue')
@@ -86,6 +94,13 @@ if (process.env.CI == 'true') {
             targetIssueFooterTemplate = launchArgs[i + 1]
         } else if (launchArgs[i] === '--target_comment_footer_template') {
             targetCommentFooterTemplate = launchArgs[i + 1]
+        } else if (launchArgs[i] === '--skip_comment_sync_keywords') {
+            skipCommentSyncKeywords = launchArgs[i + 1]
+                .split(',')
+                .map(x => x.trim())
+                .filter(x => x)
+        } else if (launchArgs[i] == '--skipped_comment_message') {
+            skippedCommentMessage = core.getInput('skipped_comment_message')
         }
     }
 }
@@ -97,7 +112,12 @@ const gitHubTarget = new GitHub(
     repoTarget
 )
 
-let utils = new Utils(targetIssueFooterTemplate, targetCommentFooterTemplate)
+let utils = new Utils(
+    targetIssueFooterTemplate,
+    targetCommentFooterTemplate,
+    skipCommentSyncKeywords,
+    skippedCommentMessage
+)
 
 if (syncRepoLabels) {
     LabelSyncer.syncLabels(gitHubSource, gitHubTarget)
