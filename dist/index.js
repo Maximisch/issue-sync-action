@@ -44302,11 +44302,11 @@ switch (process.env.GITHUB_EVENT_NAME) {
         if (ONLY_SYNC_MAIN_ISSUE || skipSync)
             break;
         const sourceComment = payload.comment;
-        const issueCommentBody = utils.getIssueCommentTargetBody(sourceComment);
-        if (utils.getIssueCreatedCommentTemplate(gitHubTarget, issueCommentBody).includes(issueCreatedCommentTemplate)) {
+        if (utils.isIssueCreatedComment(sourceComment.body)) {
             console.log('Skipping the service comment sync');
             break;
         }
+        const issueCommentBody = utils.getIssueCommentTargetBody(sourceComment);
         gitHubTarget.getIssueNumberByTitle(issue.title).then(targetIssueNumber => {
             console.log(`target_issue_id:${targetIssueNumber}`);
             core.setOutput('issue_id_target', targetIssueNumber);
@@ -44497,6 +44497,11 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.Utils = void 0;
 class Utils {
     constructor(targetIssueFooterTemplate, targetCommentFooterTemplate, skipCommentSyncKeywords, skippedCommentMessage, issueCreatedCommentTemplate) {
+        // hidden messages are wrapped into a comment block <!-- --> and are used for
+        // matching the target issues and comments with their source
+        this.issueBodyHiddentMessageTemplate = 'copiedFromSourceIssue: {{<link>}}';
+        this.issueCommenBodyHidddenMessageTemplate = 'copiedFromSourceIssueComment: {{<link>}}';
+        this.issueCreatedCommentHiddenMessage = 'type: issueCreatedComment';
         this.targetCommentFooterTemplate = targetCommentFooterTemplate;
         this.targetIssueFooterTemplate = targetIssueFooterTemplate;
         this.skipCommentSyncKeywords = skipCommentSyncKeywords;
@@ -44518,20 +44523,33 @@ class Utils {
         console.info(message);
         return result;
     }
+    getIssueCommentHiddenFooter(issueComment) {
+        return this.wrapInComment(this.issueCommenBodyHidddenMessageTemplate.replace('{{<link>}}', issueComment.html_url));
+    }
     getIssueCommentFooter(issueComment) {
         return this.targetCommentFooterTemplate
             .replace('{{<link>}}', issueComment.html_url)
             .replace('{{<author>}}', `@${issueComment.user.login}`);
     }
     getIssueCreatedComment(gitHub, issueId) {
-        return this.issueCreatedCommentTemplate.replace('{{<link>}}', `https://github.com/${gitHub.owner}/${gitHub.repo}/issues/${issueId}`);
+        return (this.issueCreatedCommentTemplate.replace('{{<link>}}', `https://github.com/${gitHub.owner}/${gitHub.repo}/issues/${issueId}`) + `\n${this.wrapInComment(this.issueCreatedCommentHiddenMessage)}`);
     }
-    getIssueCreatedCommentTemplate(gitHub, body) {
-        // replaces a link to the target issue with {{<link>}} placeholder for
-        // message matching (template unrender)
-        const baseLinkTemplate = `https://github.com/${gitHub.owner}/${gitHub.repo}/issues/`;
-        const regex = new RegExp(baseLinkTemplate.replace('/', '\\/') + '\\d+');
-        return body.replace(regex, '{{<link>}}');
+    isIssueCreatedComment(body) {
+        const lines = body.split('\n');
+        for (let i = 0; i < lines.length; i++) {
+            if (!this.isCommentLine(lines[i]))
+                continue;
+            if (lines[i].includes(this.issueCreatedCommentHiddenMessage)) {
+                return true;
+            }
+        }
+        return false;
+    }
+    wrapInComment(line) {
+        return `<!-- ${line} -->`;
+    }
+    isCommentLine(line) {
+        return line.trim().startsWith('<!--') && line.trim().endsWith('-->');
     }
     getIssueCommentBodyFiltered(issueComment) {
         for (let i = 0; i < this.skipCommentSyncKeywords.length; i++) {
@@ -44543,16 +44561,21 @@ class Utils {
     }
     getIssueCommentTargetBody(issueComment) {
         const footer = this.getIssueCommentFooter(issueComment);
+        const hiddenFooter = this.getIssueCommentHiddenFooter(issueComment);
         const body = this.getIssueCommentBodyFiltered(issueComment);
-        return footer ? body + '\n\n' + footer : body;
+        return (footer ? body + '\n\n' + footer : body) + '\n\n' + hiddenFooter;
+    }
+    getIssueHiddenFooter(issue) {
+        return this.wrapInComment(this.issueBodyHiddentMessageTemplate.replace('{{<link>}}', issue.html_url));
     }
     getIssueFooter(issue) {
         return this.targetIssueFooterTemplate.replace('{{<link>}}', issue.html_url);
     }
     getIssueTargetBody(issue) {
         const footer = this.getIssueFooter(issue);
+        const hiddenFooter = this.getIssueHiddenFooter(issue);
         const body = issue.body || '';
-        return footer ? body + '\n\n' + footer : body;
+        return (footer ? body + '\n\n' + footer : body) + '\n' + hiddenFooter;
     }
 }
 exports.Utils = Utils;

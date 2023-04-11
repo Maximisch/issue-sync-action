@@ -46,8 +46,8 @@ inputs:
     required: false
     default: "_The source comment contained sensitive information and was not copied_"
   issue_created_comment_template:
-    description: 'A template for comment to be created in the source issue with a link to a copy in a target repository after the copy is created. {{<link>}} is replaced with a link to target issue'
-    required: false  # TODO default to ""
+    description: 'A template for comment to be created in the source issue with a link to a copy in a target repository after the copy is created. {{<link>}} is replaced with a link to target issue. If empty/omitted, no comment will be created.'
+    required: false
     default: ""
 outputs:
   issue_id_target:

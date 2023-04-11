@@ -25,6 +25,7 @@ on:
 jobs:
   issue-sync:
     runs-on: ubuntu-latest
+    if: contains( github.event.issue.labels.*.name, 'public')  # limits this workflow to only run on issues and comments with the label, cost saving measure
     steps:
     - name: Run the typescript action
       uses: camunda/issue-sync-action

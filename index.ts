@@ -151,15 +151,13 @@ switch (process.env.GITHUB_EVENT_NAME) {
         if (ONLY_SYNC_MAIN_ISSUE || skipSync) break
 
         const sourceComment: IssueComment = payload.comment
-        const issueCommentBody = utils.getIssueCommentTargetBody(sourceComment)
 
-        if (
-            utils.getIssueCreatedCommentTemplate(gitHubTarget, issueCommentBody).includes(issueCreatedCommentTemplate)
-        ) {
+        if (utils.isIssueCreatedComment(sourceComment.body)) {
             console.log('Skipping the service comment sync')
             break
         }
 
+        const issueCommentBody = utils.getIssueCommentTargetBody(sourceComment)
         gitHubTarget.getIssueNumberByTitle(issue.title).then(targetIssueNumber => {
             console.log(`target_issue_id:${targetIssueNumber}`)
             core.setOutput('issue_id_target', targetIssueNumber)
