@@ -42,9 +42,13 @@ inputs:
     required: false
     default: ""
   skipped_comment_message:
-    description: 'A target commit message displayed instead of the original one in case any of skip_comment_sync_keywords is mentioned in the source comment'
+    description: 'A target comment message displayed instead of the original one in case any of skip_comment_sync_keywords is mentioned in the source comment'
     required: false
     default: "_The source comment contained sensitive information and was not copied_"
+  issue_created_comment_template:
+    description: 'A template for comment to be created in the source issue with a link to a copy in a target repository after the copy is created. {{<link>}} is replaced with a link to target issue. If empty/omitted, no comment will be created.'
+    required: false
+    default: ""
 outputs:
   issue_id_target:
     description: 'The issue id of the found issue with the same name in the target repository, empty if not found'

@@ -25,6 +25,7 @@ on:
 jobs:
   issue-sync:
     runs-on: ubuntu-latest
+    if: contains( github.event.issue.labels.*.name, 'public')  # limits this workflow to only run on issues and comments with the label, cost saving measure
     steps:
     - name: Run the typescript action
       uses: camunda/issue-sync-action
@@ -37,6 +38,9 @@ jobs:
         target_issue_footer_template: '<sup>:robot: This issue is automatically synced from: [source]({{<link>}})</sup>'
         target_comment_footer_template: '<sup>:robot: This comment from {{<author>}} is automatically synced from: [source]({{<link>}})</sup>'
         skip_comment_sync_keywords: '[skip-sync],[private]'
+        issue_created_comment_template: |
+          A public reference has been created: {{<link>}}
+          **Notice**: comments after this one **are** synchronized with the public copy of the issue.
       env:
         GITHUB_TOKEN_SOURCE: ${{ secrets.GH_TOKEN_FOR_SOURCE }}
         GITHUB_TOKEN_TARGET: ${{ secrets.GH_TOKEN_FOR_TARGET }}
