@@ -44344,26 +44344,8 @@ switch (process.env.GITHUB_EVENT_NAME) {
             break;
         const issueBody = utils.getIssueTargetBody(issue);
         switch (action) {
-            case 'opened':
-                // Create new issue in target repo
-                gitHubTarget
-                    .createIssue(issue.title, issueBody, labels)
-                    .then(response => {
-                    console.log('Created issue:', response.data.title);
-                    // set target issue id for GH output
-                    console.log(`target_issue_id:${response.data.id}`);
-                    core.setOutput('issue_id_target', response.data.id);
-                    gitHubSource.reactOnIssue(number, 'rocket');
-                    if (issueCreatedCommentTemplate) {
-                        gitHubSource.createComment(number, utils.getIssueCreatedComment(gitHubTarget, response.data.number));
-                    }
-                })
-                    .catch(err => {
-                    let msg = 'Error creating issue:';
-                    console.error(msg, err);
-                    core.setFailed(`${msg} ${err}`);
-                });
-                break;
+            // not parsing the 'opened' case since if an issue is opened with a label, two events are fired: 'opened' and 'labeled',
+            // causing a concurrency and potentially 2 issues created in the target instead of one
             case 'edited':
             case 'closed':
             case 'reopened':
