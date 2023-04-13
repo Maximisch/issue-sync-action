@@ -41,6 +41,7 @@ jobs:
         issue_created_comment_template: |
           A public reference has been created: {{<link>}}
           **Notice**: comments after this one **are** synchronized with the public copy of the issue.
+        use_comment_for_issue_matching: true
       env:
         GITHUB_TOKEN_SOURCE: ${{ secrets.GH_TOKEN_FOR_SOURCE }}
         GITHUB_TOKEN_TARGET: ${{ secrets.GH_TOKEN_FOR_TARGET }}

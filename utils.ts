@@ -84,7 +84,7 @@ export class Utils {
         return (footer ? body + '\n\n' + footer : body) + '\n\n' + hiddenFooter
     }
 
-    private getIssueHiddenFooter(issue: Issue): string {
+    public getIssueHiddenFooter(issue: Issue): string {
         return this.wrapInComment(this.issueBodyHiddentMessageTemplate.replace('{{<link>}}', issue.html_url))
     }
 

@@ -44117,10 +44117,32 @@ class GitHub {
             return null;
         });
     }
+    getIssueNumber(useCommentForIssueMatching, issueTitle, searchString) {
+        if (useCommentForIssueMatching) {
+            return this.getIssueNumberBySearchString(searchString);
+        }
+        else {
+            return this.getIssueNumberByTitle(issueTitle);
+        }
+    }
+    getIssueNumberBySearchString(searchString) {
+        // searchString format: '<!-- copiedFromSourceIssue: https://github.com/<org>/<repo>/issues/<issueNumber> -->'
+        console.log(`Finding the target issue by search string: ${searchString}`);
+        return this.octokit
+            .request('GET /search/issues', {
+            q: `repo:${this.owner}/${this.repo}+in:body+type:issue+"${searchString}"`,
+        })
+            .then(response => {
+            console.log(`Found a total of ${response.data.total_count} issues for issue search that fit the query.`);
+            const issueMatch = response.data.items.find(issue => issue.body.includes(searchString));
+            return (issueMatch || {}).number;
+        });
+    }
     getIssueNumberByTitle(issueTitle) {
         // Find issue number from target repo where the issue title matches the title of the issue in the source repo
         // Sort by created and order by ascending to select the oldest created issue of that title
         // Octokit automatically encoded the query
+        console.log(`Finding the target issue by title match: ${issueTitle}`);
         return this.octokit
             .request('GET /search/issues', {
             q: `repo:${this.owner}/${this.repo}+in:title+type:issue+${issueTitle}`,
@@ -44189,6 +44211,7 @@ let syncRepoLabels;
 let targetIssueFooterTemplate = '';
 let targetCommentFooterTemplate = '';
 let issueCreatedCommentTemplate = '';
+let useCommentForIssueMatching = false;
 let ONLY_SYNC_ON_LABEL;
 let CREATE_ISSUES_ON_EDIT;
 let ONLY_SYNC_MAIN_ISSUE;
@@ -44221,6 +44244,7 @@ if (process.env.CI == 'true') {
         .filter(x => x);
     skippedCommentMessage = core.getInput('skipped_comment_message');
     issueCreatedCommentTemplate = core.getInput('issue_created_comment_template');
+    useCommentForIssueMatching = core.getBooleanInput('use_comment_for_issue_matching');
     ONLY_SYNC_ON_LABEL = core.getInput('only_sync_on_label');
     CREATE_ISSUES_ON_EDIT = core.getBooleanInput('create_issues_on_edit');
     ONLY_SYNC_MAIN_ISSUE = core.getBooleanInput('only_sync_main_issue');
@@ -44287,6 +44311,9 @@ else {
         else if (launchArgs[i] == '--issue_created_comment_template') {
             issueCreatedCommentTemplate = launchArgs[i + 1];
         }
+        else if (launchArgs[i] == '--use_comment_for_issue_matching') {
+            useCommentForIssueMatching = launchArgs[i + 1].toLowerCase() == 'true';
+        }
     }
 }
 const gitHubSource = new github_1.GitHub(new octokit_1.Octokit({ auth: githubTokenSource }), ownerSource, repoSource);
@@ -44319,7 +44346,9 @@ switch (process.env.GITHUB_EVENT_NAME) {
             break;
         }
         const issueCommentBody = utils.getIssueCommentTargetBody(sourceComment);
-        gitHubTarget.getIssueNumberByTitle(issue.title).then(targetIssueNumber => {
+        gitHubTarget
+            .getIssueNumber(useCommentForIssueMatching, issue.title, utils.getIssueHiddenFooter(issue))
+            .then(targetIssueNumber => {
             console.log(`target_issue_id:${targetIssueNumber}`);
             core.setOutput('issue_id_target', targetIssueNumber);
             if (action == 'created') {
@@ -44364,7 +44393,7 @@ switch (process.env.GITHUB_EVENT_NAME) {
             case 'labeled':
             case 'unlabeled':
                 gitHubTarget
-                    .getIssueNumberByTitle(issue.title)
+                    .getIssueNumber(useCommentForIssueMatching, issue.title, utils.getIssueHiddenFooter(issue))
                     .then(targetIssueNumber => {
                     if (targetIssueNumber) {
                         // set target issue id for GH output
