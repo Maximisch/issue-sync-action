@@ -28,24 +28,7 @@ export class Utils {
         this.issueCreatedCommentTemplate = issueCreatedCommentTemplate
     }
 
-    public findTargetComment(sourceComment: IssueComment, targetComments: Array<IssueComment>): IssueComment {
-        const matchContent = this.getIssueCommentFooter(sourceComment)
-        let result: IssueComment = null
-        targetComments.forEach(targetComment => {
-            if (matchContent.trim() && targetComment.body.includes(matchContent)) {
-                result = targetComment
-                return
-            }
-        })
-
-        const message = result
-            ? `Found a match for the source comment ${sourceComment.id} in the target: ${result.id}`
-            : `Could not find a match for the source comment ${sourceComment.id} in the target`
-        console.info(message)
-        return result
-    }
-
-    private getIssueCommentHiddenFooter(issueComment: IssueComment): string {
+    public getIssueCommentHiddenFooter(issueComment: IssueComment): string {
         return this.wrapInComment(
             this.issueCommenBodyHidddenMessageTemplate.replace('{{<link>}}', issueComment.html_url)
         )

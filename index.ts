@@ -171,17 +171,17 @@ switch (process.env.GITHUB_EVENT_NAME) {
                 })
             } else {
                 // edited or deleted
-                gitHubTarget.getComments(targetIssueNumber).then(targetComments => {
-                    const targetCommentMatch = utils.findTargetComment(sourceComment, targetComments)
-                    if (targetCommentMatch) {
+                const searchString = utils.getIssueCommentHiddenFooter(sourceComment)
+                gitHubTarget.getIssueCommentNumber(searchString).then(targetCommentId => {
+                    if (targetCommentId) {
                         if (action == 'edited') {
-                            gitHubTarget.editComment(targetCommentMatch.id, issueCommentBody).then(response => {
+                            gitHubTarget.editComment(targetCommentId, issueCommentBody).then(response => {
                                 // set target comment id for GH output
                                 core.setOutput('comment_id_target', response.data.id)
                                 console.info('Successfully updated a comment on issue')
                             })
                         } else if (action == 'deleted') {
-                            gitHubTarget.deleteComment(targetCommentMatch.id)
+                            gitHubTarget.deleteComment(targetCommentId)
                         }
                     }
                 })

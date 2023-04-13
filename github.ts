@@ -173,17 +173,33 @@ export class GitHub {
             })
     }
 
-    public getComments(issueNumber: number): Promise<Array<any>> {
+    public getIssueCommentNumber(searchString: string): Promise<number | null> {
+        // searchString format: '<!-- copiedFromSourceIssueComment: https://github.com/<org>/<repo>/issues/<issueNumber>#issuecomment-<issueCommentNumber> -->'
+        const clearSearchString = searchString.replace('<!--', '').replace('-->', '').trim() // search result drops < and >
         return this.octokit
-            .paginate('GET /repos/{owner}/{repo}/issues/{issue_number}/comments', {
-                owner: this.owner,
-                repo: this.repo,
-                issue_number: issueNumber,
-                per_page: 100,
+            .request('GET /search/issues', {
+                headers: {
+                    accept: 'application/vnd.github.text-match+json',
+                },
+                q: `repo:${this.owner}/${this.repo}+in:comments+type:issue+"${searchString}"`,
             })
-            .then(comments => {
-                console.log(`Received ${comments.length} comments`)
-                return comments
+            .then(response => {
+                console.log(
+                    `Found a total of ${response.data.total_count} issues for comment search that fit the query.`
+                )
+                for (let i = 0; i < response.data.items.length; i++) {
+                    const textMatch = response.data.items[i].text_matches.find(match =>
+                        match.fragment.includes(clearSearchString)
+                    )
+                    if (textMatch) {
+                        console.log(`Found a text match in: ${textMatch.object_url}`)
+                        const regexMatch = textMatch.object_url.match(/\/comments\/(\d+)$/)
+                        if (regexMatch && regexMatch[1]) {
+                            return parseInt(regexMatch[1])
+                        }
+                    }
+                }
+                return null
             })
     }
 
