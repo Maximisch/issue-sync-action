@@ -44092,17 +44092,29 @@ class GitHub {
             return response;
         });
     }
-    getComments(issueNumber) {
+    getIssueCommentNumber(searchString) {
+        // searchString format: '<!-- copiedFromSourceIssueComment: https://github.com/<org>/<repo>/issues/<issueNumber>#issuecomment-<issueCommentNumber> -->'
+        const clearSearchString = searchString.replace('<!--', '').replace('-->', '').trim(); // search result drops < and >
         return this.octokit
-            .paginate('GET /repos/{owner}/{repo}/issues/{issue_number}/comments', {
-            owner: this.owner,
-            repo: this.repo,
-            issue_number: issueNumber,
-            per_page: 100,
+            .request('GET /search/issues', {
+            headers: {
+                accept: 'application/vnd.github.text-match+json',
+            },
+            q: `repo:${this.owner}/${this.repo}+in:comments+type:issue+"${searchString}"`,
         })
-            .then(comments => {
-            console.log(`Received ${comments.length} comments`);
-            return comments;
+            .then(response => {
+            console.log(`Found a total of ${response.data.total_count} issues for comment search that fit the query.`);
+            for (let i = 0; i < response.data.items.length; i++) {
+                const textMatch = response.data.items[i].text_matches.find(match => match.fragment.includes(clearSearchString));
+                if (textMatch) {
+                    console.log(`Found a text match in: ${textMatch.object_url}`);
+                    const regexMatch = textMatch.object_url.match(/\/comments\/(\d+)$/);
+                    if (regexMatch && regexMatch[1]) {
+                        return parseInt(regexMatch[1]);
+                    }
+                }
+            }
+            return null;
         });
     }
     getIssueNumberByTitle(issueTitle) {
@@ -44320,18 +44332,18 @@ switch (process.env.GITHUB_EVENT_NAME) {
             }
             else {
                 // edited or deleted
-                gitHubTarget.getComments(targetIssueNumber).then(targetComments => {
-                    const targetCommentMatch = utils.findTargetComment(sourceComment, targetComments);
-                    if (targetCommentMatch) {
+                const searchString = utils.getIssueCommentHiddenFooter(sourceComment);
+                gitHubTarget.getIssueCommentNumber(searchString).then(targetCommentId => {
+                    if (targetCommentId) {
                         if (action == 'edited') {
-                            gitHubTarget.editComment(targetCommentMatch.id, issueCommentBody).then(response => {
+                            gitHubTarget.editComment(targetCommentId, issueCommentBody).then(response => {
                                 // set target comment id for GH output
                                 core.setOutput('comment_id_target', response.data.id);
                                 console.info('Successfully updated a comment on issue');
                             });
                         }
                         else if (action == 'deleted') {
-                            gitHubTarget.deleteComment(targetCommentMatch.id);
+                            gitHubTarget.deleteComment(targetCommentId);
                         }
                     }
                 });
@@ -44489,21 +44501,6 @@ class Utils {
         this.skipCommentSyncKeywords = skipCommentSyncKeywords;
         this.skippedCommentMessage = skippedCommentMessage;
         this.issueCreatedCommentTemplate = issueCreatedCommentTemplate;
-    }
-    findTargetComment(sourceComment, targetComments) {
-        const matchContent = this.getIssueCommentFooter(sourceComment);
-        let result = null;
-        targetComments.forEach(targetComment => {
-            if (matchContent.trim() && targetComment.body.includes(matchContent)) {
-                result = targetComment;
-                return;
-            }
-        });
-        const message = result
-            ? `Found a match for the source comment ${sourceComment.id} in the target: ${result.id}`
-            : `Could not find a match for the source comment ${sourceComment.id} in the target`;
-        console.info(message);
-        return result;
     }
     getIssueCommentHiddenFooter(issueComment) {
         return this.wrapInComment(this.issueCommenBodyHidddenMessageTemplate.replace('{{<link>}}', issueComment.html_url));
