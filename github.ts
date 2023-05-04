@@ -203,10 +203,38 @@ export class GitHub {
             })
     }
 
-    public getIssueNumberByTitle(issueTitle: string): Promise<number> {
+    public getIssueNumber(
+        useCommentForIssueMatching: boolean,
+        issueTitle: string,
+        searchString: string
+    ): Promise<number | null> {
+        if (useCommentForIssueMatching) {
+            return this.getIssueNumberBySearchString(searchString)
+        } else {
+            return this.getIssueNumberByTitle(issueTitle)
+        }
+    }
+
+    private getIssueNumberBySearchString(searchString: string): Promise<number | null> {
+        // searchString format: '<!-- copiedFromSourceIssue: https://github.com/<org>/<repo>/issues/<issueNumber> -->'
+        console.log(`Finding the target issue by search string: ${searchString}`)
+        return this.octokit
+            .request('GET /search/issues', {
+                q: `repo:${this.owner}/${this.repo}+in:body+type:issue+"${searchString}"`,
+            })
+            .then(response => {
+                console.log(`Found a total of ${response.data.total_count} issues for issue search that fit the query.`)
+
+                const issueMatch = response.data.items.find(issue => issue.body.includes(searchString))
+                return (issueMatch || {}).number
+            })
+    }
+
+    private getIssueNumberByTitle(issueTitle: string): Promise<number | null> {
         // Find issue number from target repo where the issue title matches the title of the issue in the source repo
         // Sort by created and order by ascending to select the oldest created issue of that title
         // Octokit automatically encoded the query
+        console.log(`Finding the target issue by title match: ${issueTitle}`)
         return this.octokit
             .request('GET /search/issues', {
                 q: `repo:${this.owner}/${this.repo}+in:title+type:issue+${issueTitle}`,

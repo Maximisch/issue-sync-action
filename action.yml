@@ -49,6 +49,10 @@ inputs:
     description: 'A template for comment to be created in the source issue with a link to a copy in a target repository after the copy is created. {{<link>}} is replaced with a link to target issue. If empty/omitted, no comment will be created.'
     required: false
     default: ""
+  use_comment_for_issue_matching:
+    description: 'If set to true, search the matching target issue by the hidden comment in the footer of the issue (recommended). Otherwise, do match by a title (prone to duplicate issues)'
+    required: false
+    default: "false"
 outputs:
   issue_id_target:
     description: 'The issue id of the found issue with the same name in the target repository, empty if not found'
