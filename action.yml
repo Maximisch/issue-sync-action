@@ -53,6 +53,14 @@ inputs:
     description: 'If set to true, search the matching target issue by the hidden comment in the footer of the issue (recommended). Otherwise, do match by a title (prone to duplicate issues)'
     required: false
     default: "false"
+  target_issue_assignees_behavior:
+    description: "Specify the behavior for the assignee field of the target issue. Supported values: skip_sync (do not touch the target assignees upon sync), add_source_author (add the source issue to the existing target assignees), assign_source_author (replace the target assignees with source's author), assign_static (replace the target assignees with a list from the target_issue_assignees_static) input parameter and add_static (add the assignees from the target_issue_assignees_static input parameters to the target assignee list)"
+    required: false
+    default: "skip_sync"
+  target_issue_assignees_static:
+    description: "When target_issue_assignees_behavior is set to assign_static or add_static, use this comma-separated list of GitHub usernames as replace or add assignees for the target issue"
+    required: false
+    default: ""
 outputs:
   issue_id_target:
     description: 'The issue id of the found issue with the same name in the target repository, empty if not found'

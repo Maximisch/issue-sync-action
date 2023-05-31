@@ -1,7 +1,8 @@
 export class Issue {
     id: number
     title: string
-    authors: string[]
+    assignees: User[]
+    user: User // issue author
     body: string
     state: 'open' | 'closed'
     state_reason: 'completed' | 'not_planned' | 'reopened' | null
