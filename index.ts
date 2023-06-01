@@ -6,6 +6,14 @@ import { GitHub } from './github'
 import { LabelSyncer } from './labelSyncer'
 import { Utils } from './utils'
 
+enum TargetIssueAssigneesBehavior {
+    SkipSync = 'skip_sync',
+    AddSourceAuthor = 'add_source_author',
+    AssignSourceAuthor = 'assign_source_author',
+    AddStatic = 'add_static',
+    AssignStatic = 'assign_static',
+}
+
 let ownerSource = ''
 let repoSource = ''
 let ownerTarget = ''
@@ -17,6 +25,8 @@ let additionalIssueLabels: string[] = []
 let skipCommentSyncKeywords: string[] = []
 let skippedCommentMessage: string
 let syncRepoLabels: boolean
+let targetIssueAssigneesBehavior: TargetIssueAssigneesBehavior
+let targetIssueAssigneesStatic: string[] = []
 let targetIssueFooterTemplate = ''
 let targetCommentFooterTemplate = ''
 let issueCreatedCommentTemplate = ''
@@ -56,6 +66,12 @@ if (process.env.CI == 'true') {
     skippedCommentMessage = core.getInput('skipped_comment_message')
     issueCreatedCommentTemplate = core.getInput('issue_created_comment_template')
     useCommentForIssueMatching = core.getBooleanInput('use_comment_for_issue_matching')
+    targetIssueAssigneesBehavior = <TargetIssueAssigneesBehavior>core.getInput('target_issue_assignees_behavior')
+    targetIssueAssigneesStatic = core
+        .getInput('target_issue_assignees_static')
+        .split(',')
+        .map(x => x.trim())
+        .filter(x => x)
     ONLY_SYNC_ON_LABEL = core.getInput('only_sync_on_label')
     CREATE_ISSUES_ON_EDIT = core.getBooleanInput('create_issues_on_edit')
     ONLY_SYNC_MAIN_ISSUE = core.getBooleanInput('only_sync_main_issue')
@@ -69,6 +85,8 @@ if (process.env.CI == 'true') {
     console.log(`Target issues footer template: ${targetIssueFooterTemplate}`)
     console.log(`Target comments footer template: ${targetCommentFooterTemplate}`)
     console.log(`Issue created template: ${issueCreatedCommentTemplate}`)
+    console.log(`Target issue assignees behavior: ${targetIssueAssigneesBehavior}`)
+    console.log(`Target issue assignees static list: ${targetIssueAssigneesStatic}`)
 } else {
     console.log('Reading params from CLI context...')
     // read all variables from launch parameters
@@ -110,6 +128,13 @@ if (process.env.CI == 'true') {
             issueCreatedCommentTemplate = launchArgs[i + 1]
         } else if (launchArgs[i] == '--use_comment_for_issue_matching') {
             useCommentForIssueMatching = launchArgs[i + 1].toLowerCase() == 'true'
+        } else if (launchArgs[i] == '--target_issue_assignees_behavior') {
+            targetIssueAssigneesBehavior = <TargetIssueAssigneesBehavior>launchArgs[i + 1]
+        } else if (launchArgs[i] === '--target_issue_assignees_static') {
+            targetIssueAssigneesStatic = launchArgs[i + 1]
+                .split(',')
+                .map(x => x.trim())
+                .filter(x => x)
         }
     }
 }
@@ -145,9 +170,31 @@ const issue: Issue = payload.issue
 const labels: string[] = [...new Set(issue.labels.map(label => label.name).concat(additionalIssueLabels))]
 // If flag for only syncing labelled issues is set, check if issue has label of specified sync type
 const skipSync = ONLY_SYNC_ON_LABEL && !issue.labels.find(label => label.name === ONLY_SYNC_ON_LABEL)
+const sourceIssueAuthor: string = issue.user?.login
+const sourceIssueAssignees: string[] = issue.assignees.map(x => x.login)
+let targetIssueAssignees: string[] = undefined // if a parameter is undefined, octokit will not use it for API calls when it's passed into a function
 
 console.log(`Found issue ${number}: ${issue.title}`)
 console.log(`Labels: ${labels}`)
+
+switch (targetIssueAssigneesBehavior) {
+    case TargetIssueAssigneesBehavior.AddSourceAuthor:
+        targetIssueAssignees = sourceIssueAssignees.concat([sourceIssueAuthor])
+        break
+    case TargetIssueAssigneesBehavior.AssignSourceAuthor:
+        targetIssueAssignees = [sourceIssueAuthor]
+        break
+    case TargetIssueAssigneesBehavior.AddStatic:
+        targetIssueAssignees = sourceIssueAssignees.concat(targetIssueAssigneesStatic)
+        break
+    case TargetIssueAssigneesBehavior.AssignStatic:
+        targetIssueAssignees = targetIssueAssigneesStatic
+        break
+}
+
+if (targetIssueAssignees) {
+    targetIssueAssignees = [...new Set(targetIssueAssignees.filter(x => x))]
+}
 
 switch (process.env.GITHUB_EVENT_NAME) {
     case 'issue_comment':
@@ -223,7 +270,8 @@ switch (process.env.GITHUB_EVENT_NAME) {
                                     issueBody,
                                     issue.state,
                                     issue.state_reason,
-                                    labels
+                                    labels,
+                                    targetIssueAssignees
                                 )
                                 .then(response => {
                                     console.log('Updated issue:', response.data.title)
@@ -238,7 +286,7 @@ switch (process.env.GITHUB_EVENT_NAME) {
                             if (CREATE_ISSUES_ON_EDIT || action == 'labeled') {
                                 // Create issue anew
                                 gitHubTarget
-                                    .createIssue(issue.title, issueBody, labels)
+                                    .createIssue(issue.title, issueBody, labels, targetIssueAssignees)
                                     .then(response => {
                                         // set target issue id for GH output
                                         core.setOutput('issue_id_target', response.data.number)

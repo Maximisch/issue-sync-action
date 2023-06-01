@@ -38,7 +38,7 @@ export class GitHub {
             })
     }
 
-    public createIssue(title: string, body: string, labels: string[]): Promise<any> {
+    public createIssue(title: string, body: string, labels: string[], assignees?: string[]): Promise<any> {
         return this.octokit
             .request('POST /repos/{owner}/{repo}/issues', {
                 owner: this.owner,
@@ -46,6 +46,7 @@ export class GitHub {
                 title,
                 body,
                 labels,
+                assignees,
             })
             .then(response => {
                 console.log(`Created issue for ${response.data.html_url}`)
@@ -59,7 +60,8 @@ export class GitHub {
         body: string,
         state?: 'open' | 'closed',
         state_reason?: 'completed' | 'not_planned' | 'reopened' | null,
-        labels?: string[]
+        labels?: string[],
+        assignees?: string[]
     ): Promise<any> {
         return this.octokit
             .request('PATCH /repos/{owner}/{repo}/issues/{issue_number}', {
@@ -71,22 +73,10 @@ export class GitHub {
                 state,
                 state_reason,
                 labels,
+                assignees,
             })
             .then(response => {
                 console.log(`Updated issue ${response.data.html_url}`)
-                return response
-            })
-    }
-
-    public getIssue(issueNumber: number): Promise<any> {
-        return this.octokit
-            .request('GET /repos/{owner}/{repo}/issues/{issue_number}', {
-                owner: this.owner,
-                repo: this.repo,
-                issue_number: issueNumber,
-            })
-            .then(response => {
-                console.log(`Received issue ${response.data.html_url}`)
                 return response
             })
     }
@@ -129,19 +119,6 @@ export class GitHub {
             })
             .then(response => {
                 console.log(`Created comment ${response.data.html_url}`)
-                return response
-            })
-    }
-
-    public getComment(commentId: number): Promise<any> {
-        return this.octokit
-            .request('GET /repos/{owner}/{repo}/issues/comments/{comment_id}', {
-                owner: this.owner,
-                repo: this.repo,
-                comment_id: commentId,
-            })
-            .then(response => {
-                console.log(`Received comment ${response.data.html_url}`)
                 return response
             })
     }
