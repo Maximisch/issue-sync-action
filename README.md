@@ -1,10 +1,10 @@
 # issue-sync-action
 
-Used to sync issues and comments from one repository to another, for example for use in internal roadmap publication.
+Used to sync issues and comments from one repository to another, for example, for use in internal roadmap publication.
 
-You need to set a GITHUB_TOKEN environmental variable that is authorized to read from the source repository as well as write new issues to the target repository. 
+You need to set a `GITHUB_TOKEN` environment variable that is authorized to read from the source repository as well as write new issues to the target repository. 
 
-Alternatively, you can set two separate environment variables GITHUB_TOKEN_SOURCE and GITHUB_TOKEN_TARGET
+Alternatively, you can set two separate environment variables `GITHUB_TOKEN_SOURCE` and `GITHUB_TOKEN_TARGET`
 
 ## Usage
 
