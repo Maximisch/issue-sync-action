@@ -67,5 +67,5 @@ outputs:
   comment_id_target:
     description: 'The comment id of the created comment in the target repository, empty if not found'
 runs:
-  using: 'node16'
+  using: 'node20'
   main: 'dist/index.js'
