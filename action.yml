@@ -18,6 +18,54 @@ inputs:
     description: 'Will exclude the syncing of comments.'
     required: false
     default: "false"
+  create_issues_on_edit:
+    description: 'Whether on edit events an issue should be created if it is missing in the target project'
+    required: false
+    default: "true"
+  additional_issue_labels:
+    description: 'Additional labels to add to the target issues on sync (comma-separated)'
+    required: false
+    default: ""
+  target_issue_footer_template:
+    description: 'Template to be added to every copied issue body. `<<{link}>>` is replaced with source issue URL'
+    required: false
+    default: "<sup>:robot: This issue is automatically synced from: [source]({{<link>}})</sup>"
+  target_comment_footer_template:
+    description: 'Template to be added to every copied comments body. Has to be non-empty to support comment editing and deletion. `<<{link}>>` is replaced with source comment URL, `<<{author}>>` with source comment author GitHub name'
+    default: "<sup>:robot: This comment from {{<author>}} is automatically synced from: [source]({{<link>}})</sup>"
+  sync_repo_labels:
+    description: 'Whether to sync the labels from source to target repository'
+    required: false
+    default: "true"
+  skip_comment_sync_keywords:
+    description: 'A comma-separated list of strings that denote that the text of the comment should not be copied in the target issue (e.g. sharing a confidential information)'
+    required: false
+    default: ""
+  skipped_comment_message:
+    description: 'A target comment message displayed instead of the original one in case any of skip_comment_sync_keywords is mentioned in the source comment'
+    required: false
+    default: "_The source comment contained sensitive information and was not copied_"
+  issue_created_comment_template:
+    description: 'A template for comment to be created in the source issue with a link to a copy in a target repository after the copy is created. {{<link>}} is replaced with a link to target issue. If empty/omitted, no comment will be created.'
+    required: false
+    default: ""
+  use_comment_for_issue_matching:
+    description: 'If set to true, search the matching target issue by the hidden comment in the footer of the issue (recommended). Otherwise, do match by a title (prone to duplicate issues)'
+    required: false
+    default: "false"
+  target_issue_assignees_behavior:
+    description: "Specify the behavior for the assignee field of the target issue. Supported values: skip_sync (do not touch the target assignees upon sync), add_source_author (add the source issue to the existing target assignees), assign_source_author (replace the target assignees with source's author), assign_static (replace the target assignees with a list from the target_issue_assignees_static) input parameter and add_static (add the assignees from the target_issue_assignees_static input parameters to the target assignee list)"
+    required: false
+    default: "skip_sync"
+  target_issue_assignees_static:
+    description: "When target_issue_assignees_behavior is set to assign_static or add_static, use this comma-separated list of GitHub usernames as replace or add assignees for the target issue"
+    required: false
+    default: ""
+outputs:
+  issue_id_target:
+    description: 'The issue id of the found issue with the same name in the target repository, empty if not found'
+  comment_id_target:
+    description: 'The comment id of the created comment in the target repository, empty if not found'
 runs:
-  using: 'node16'
+  using: 'node20'
   main: 'dist/index.js'
