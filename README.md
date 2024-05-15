@@ -17,6 +17,18 @@ only_sync_main_issue:
   description: 'Will exclude the syncing of comments.'
   required: false
   default: "false"
+source_pat:
+  description: 'Personal Access Token for the source repository. Will use workflow token if unspecified.'
+  required: false
+target_pat:
+  description: 'Personal Access Token for the target repository. Will use source token if unspecified.'
+  required: false
+source_url:
+  description: 'The GitHub URL for the source repository. Will use Github.com if unspecified.'
+  required: false
+target_url:
+  description: 'The GitHub URL for the target repository. Will use source URL if unspecified.'
+  required: true
  ```
  
 Here is a usage example:
@@ -35,4 +47,8 @@ env:
     repo_target: "MyOrg/public-roadmap" # The target repository
     only_sync_on_label: "publicise" # Only syncs issues with this label set
     only_sync_main_issue: true # Excludes comments
+    source_pat: ${{ secrets.SOURCE_PAT }} # Personal Access Token for the source repository
+    target_pat: ${{ secrets.TARGET_PAT }} # Personal Access Token for the target repository
+    source_url: "https://github-enterprise.source.com" # GitHub Enterprise Server URL for the source repository
+    target_url: "https://github-enterprise.target.com" # GitHub Enterprise Server URL for the target repository
 ```
