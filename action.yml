@@ -8,16 +8,28 @@ inputs:
   only_sync_on_label:
     description: 'If set, will only sync on issues with a label of this text'
     required: false
-  repo_source:
+  source_repo:
     description: 'Org/Repo slug for the source repository. Will default to action launch repo if not set.'
     required: false
-  repo_target:
+  target_repo:
     description: 'Org/repo slug for the target repository.'
     required: true
   only_sync_main_issue:
     description: 'Will exclude the syncing of comments.'
     required: false
     default: "false"
+  source_pat:
+    description: 'Personal Access Token for the source repository.'
+    required: true
+  target_pat:
+    description: 'Personal Access Token for the target repository.'
+    required: true
+  source_url:
+    description: 'The GitHub Enterprise Server URL for the source repository.'
+    required: true
+  target_url:
+    description: 'The GitHub Enterprise Server URL for the target repository.'
+    required: true
 runs:
   using: 'node16'
   main: 'dist/index.js'

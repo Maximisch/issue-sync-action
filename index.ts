@@ -11,21 +11,23 @@ let owner_source = "";
 let repo_source = "";
 let owner_target = "";
 let repo_target = "";
-let GITHUB_TOKEN = "";
+let source_pat = core.getInput("source_pat") || process.env.GITHUB_TOKEN;
+let target_pat = core.getInput("target_pat") || source_pat;
+let source_url = core.getInput("source_url") || "api.github.com";
+let target_url = core.getInput("target_url") || source_url;
 let ONLY_SYNC_ON_LABEL: string;
 
 // Determine which context we are running from
 if (process.env.CI == "true") {
     console.log("Reading params from actions context...");
     // Read source and target repos
-    repo_source = core.getInput("repo_source")? core.getInput("repo_source") : github.context.repo.owner + '/' + github.context.repo.repo;
+    repo_source = core.getInput("source_repo")? core.getInput("source_repo") : github.context.repo.owner + '/' + github.context.repo.repo;
     owner_source = repo_source.split('/')[0];
     repo_source = repo_source.split('/')[1];
-    repo_target = core.getInput("repo_target");
+    repo_target = core.getInput("target_repo");
     owner_target = repo_target.split('/')[0];
     repo_target = repo_target.split('/')[1];
-    // Read token and params
-    GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+    // Read params
     ONLY_SYNC_ON_LABEL = core.getInput("only_sync_on_label");
 
     console.log("Repos: " + owner_source + "/" + repo_source + " -> " + owner_target + "/" + repo_target);
@@ -36,28 +38,40 @@ if (process.env.CI == "true") {
     // read all variables from launch parameters
     const launchArgs = process.argv;
     for (let i = 0; i < launchArgs.length; i++) {
-        if (launchArgs[i] === "--owner_source") {
+        if (launchArgs[i] === "--source_owner") {
             owner_source = launchArgs[i + 1];
-        } else if (launchArgs[i] === "--repo_source") {
+        } else if (launchArgs[i] === "--source_repo") {
             repo_source = launchArgs[i + 1];
-        } else if (launchArgs[i] === "--owner_target") {
+        } else if (launchArgs[i] === "--target_owner") {
             owner_target = launchArgs[i + 1];
-        } else if (launchArgs[i] === "--repo_target") {
+        } else if (launchArgs[i] === "--target_repo") {
             repo_target = launchArgs[i + 1];
-        } else if (launchArgs[i] === "--github_token") {
-            GITHUB_TOKEN = launchArgs[i + 1];
+        } else if (launchArgs[i] === "--source_pat") {
+            source_pat = launchArgs[i + 1];
+        } else if (launchArgs[i] === "--target_pat") {
+            target_pat = launchArgs[i + 1];
+        } else if (launchArgs[i] === "--source_url") {
+            source_url = launchArgs[i + 1];
+        } else if (launchArgs[i] === "--target_url") {
+            target_url = launchArgs[i + 1];
         }
     }
 }
 
-// Init octokit
-const octokit = new Octokit({
-    auth: GITHUB_TOKEN,
-    // TODO: add ghes IP support here, or use github.octokit
+// Init octokit for source and target
+const octokit_source = new Octokit({
+    auth: source_pat,
+    baseUrl: `https://${source_url}`
+});
+
+const octokit_target = new Octokit({
+    auth: target_pat,
+    baseUrl: `https://${target_url}`
 });
 
 LabelSyncer.syncLabels(
-    octokit,
+    octokit_source,
+    octokit_target,
     owner_source,
     repo_source,
     owner_target,
@@ -67,8 +81,8 @@ LabelSyncer.syncLabels(
     const payload = require(process.env.GITHUB_EVENT_PATH as string);
     const number = (payload.issue || payload.pull_request || payload).number;
 
-    // retrieve issue by owner, repo and number from octokit
-    octokit.request('GET /repos/{owner}/{repo}/issues/{number}', {
+    // retrieve issue by owner, repo and number from octokit_source
+    octokit_source.request('GET /repos/{owner}/{repo}/issues/{number}', {
         owner: owner_source,
         repo: repo_source,
         number: number,
@@ -94,7 +108,7 @@ LabelSyncer.syncLabels(
                 }
                 // Retrieve new comment
                 let issueComment: IssueComment;
-                octokit.request('GET /repos/{owner}/{repo}/issues/comments/{comment_id}', {
+                octokit_source.request('GET /repos/{owner}/{repo}/issues/comments/{comment_id}', {
                     owner: owner_source,
                     repo: repo_source,
                     issue_number: number,
@@ -102,13 +116,13 @@ LabelSyncer.syncLabels(
                 }).then((response) => {
                     issueComment = response.data;
                     IssueSyncer.getIssueNumberByTitle(
-                        octokit,
+                        octokit_target,
                         owner_target,
                         repo_target,
                         issue.title
                     ).then((targetIssueNumber) => {
                         // Transfer new comment to target issue
-                        octokit.request('POST /repos/{owner}/{repo}/issues/{issue_number}/comments', {
+                        octokit_target.request('POST /repos/{owner}/{repo}/issues/{issue_number}/comments', {
                             owner: owner_target,
                             repo: repo_target,
                             issue_number: targetIssueNumber,
@@ -132,7 +146,7 @@ LabelSyncer.syncLabels(
                 switch(payload.action) {
                     case "opened":
                         // Create new issue in target repo
-                        octokit.request('POST /repos/{owner}/{repo}/issues', {
+                        octokit_target.request('POST /repos/{owner}/{repo}/issues', {
                             owner: owner_target,
                             repo: repo_target,
                             title: issue.title,
@@ -142,7 +156,7 @@ LabelSyncer.syncLabels(
                         .then((response) => {
                             console.log("Created issue:", response.data.title);
                             // Add comment to source issue for tracking
-                            octokit.request('PATCH /repos/{owner}/{repo}/issues/{issue_number}', {
+                            octokit_source.request('PATCH /repos/{owner}/{repo}/issues/{issue_number}', {
                                 owner: owner_source,
                                 repo: repo_source,
                                 issue_number: number,
@@ -166,7 +180,7 @@ LabelSyncer.syncLabels(
                     case "labeled":
                     case "unlabeled":
                         // Find issue number from target repo where the issue title matches the title of the issue in the source repo
-                        octokit.request('GET /repos/{owner}/{repo}/issues', {
+                        octokit_target.request('GET /repos/{owner}/{repo}/issues', {
                             owner: owner_target,
                             repo: repo_target,
                             filter: "all",
@@ -178,7 +192,7 @@ LabelSyncer.syncLabels(
                             if (targetIssue) {
                                 // Update issue in target repo
                                 // Update issue in target repo, identify target repo issue number by title match
-                                octokit.request('PATCH /repos/{owner}/{repo}/issues/{issue_number}', {
+                                octokit_target.request('PATCH /repos/{owner}/{repo}/issues/{issue_number}', {
                                     owner: owner_target,
                                     repo: repo_target,
                                     title: issue.title,
@@ -195,7 +209,7 @@ LabelSyncer.syncLabels(
                             } else {
                                 console.error("Could not find matching issue in target repo for title", issue.title);
                                 // Create issue anew
-                                octokit.request('POST /repos/{owner}/{repo}/issues', {
+                                octokit_target.request('POST /repos/{owner}/{repo}/issues', {
                                     owner: owner_target,
                                     repo: repo_target,
                                     title: issue.title,
