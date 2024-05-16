@@ -38,13 +38,13 @@ if (process.env.CI == "true") {
     // read all variables from launch parameters
     const launchArgs = process.argv;
     for (let i = 0; i < launchArgs.length; i++) {
-        if (launchArgs[i] === "--owner_source") {
+        if (launchArgs[i] === "--source_owner") {
             owner_source = launchArgs[i + 1];
-        } else if (launchArgs[i] === "--repo_source") {
+        } else if (launchArgs[i] === "--source_repo") {
             repo_source = launchArgs[i + 1];
-        } else if (launchArgs[i] === "--owner_target") {
+        } else if (launchArgs[i] === "--target_owner") {
             owner_target = launchArgs[i + 1];
-        } else if (launchArgs[i] === "--repo_target") {
+        } else if (launchArgs[i] === "--target_repo") {
             repo_target = launchArgs[i + 1];
         } else if (launchArgs[i] === "--source_pat") {
             source_pat = launchArgs[i + 1];
