@@ -8,10 +8,10 @@ inputs:
   only_sync_on_label:
     description: 'If set, will only sync on issues with a label of this text'
     required: false
-  repo_source:
+  source_repo:
     description: 'Org/Repo slug for the source repository. Will default to action launch repo if not set.'
     required: false
-  repo_target:
+  target_repo:
     description: 'Org/repo slug for the target repository.'
     required: true
   only_sync_main_issue:

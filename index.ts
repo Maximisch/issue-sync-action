@@ -21,10 +21,10 @@ let ONLY_SYNC_ON_LABEL: string;
 if (process.env.CI == "true") {
     console.log("Reading params from actions context...");
     // Read source and target repos
-    repo_source = core.getInput("repo_source")? core.getInput("repo_source") : github.context.repo.owner + '/' + github.context.repo.repo;
+    repo_source = core.getInput("source_repo")? core.getInput("source_repo") : github.context.repo.owner + '/' + github.context.repo.repo;
     owner_source = repo_source.split('/')[0];
     repo_source = repo_source.split('/')[1];
-    repo_target = core.getInput("repo_target");
+    repo_target = core.getInput("target_repo");
     owner_target = repo_target.split('/')[0];
     repo_target = repo_target.split('/')[1];
     // Read params
@@ -63,6 +63,7 @@ const octokit_target = new Octokit({
 
 LabelSyncer.syncLabels(
     octokit_source,
+    octokit_target,
     owner_source,
     repo_source,
     owner_target,
