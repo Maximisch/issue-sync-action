@@ -13,7 +13,7 @@ let owner_target = "";
 let repo_target = "";
 let source_pat = core.getInput("source_pat") || process.env.GITHUB_TOKEN;
 let target_pat = core.getInput("target_pat") || source_pat;
-let source_url = core.getInput("source_url") || "github.com";
+let source_url = core.getInput("source_url") || "api.github.com";
 let target_url = core.getInput("target_url") || source_url;
 let ONLY_SYNC_ON_LABEL: string;
 
@@ -61,12 +61,12 @@ if (process.env.CI == "true") {
 // Init octokit for source and target
 const octokit_source = new Octokit({
     auth: source_pat,
-    baseUrl: `https://${source_url}/api/v3`
+    baseUrl: `https://${source_url}`
 });
 
 const octokit_target = new Octokit({
     auth: target_pat,
-    baseUrl: `https://${target_url}/api/v3`
+    baseUrl: `https://${target_url}`
 });
 
 LabelSyncer.syncLabels(
