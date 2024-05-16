@@ -46,6 +46,14 @@ if (process.env.CI == "true") {
             owner_target = launchArgs[i + 1];
         } else if (launchArgs[i] === "--repo_target") {
             repo_target = launchArgs[i + 1];
+        } else if (launchArgs[i] === "--source_pat") {
+            source_pat = launchArgs[i + 1];
+        } else if (launchArgs[i] === "--target_pat") {
+            target_pat = launchArgs[i + 1];
+        } else if (launchArgs[i] === "--source_url") {
+            source_url = launchArgs[i + 1];
+        } else if (launchArgs[i] === "--target_url") {
+            target_url = launchArgs[i + 1];
         }
     }
 }
