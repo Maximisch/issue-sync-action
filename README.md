@@ -7,10 +7,10 @@ This supports different options:
 only_sync_on_label:
   description: 'If set, will only sync on issues with a label of this text'
   required: false
-repo_source:
+source_repo:
   description: 'Org/Repo slug for the source repository. Will default to action launch repo if not set.'
   required: false
-repo_target:
+target_repo:
   description: 'Org/repo slug for the target repository.'
   required: true
 only_sync_main_issue:
@@ -44,11 +44,14 @@ env:
 - name: Run the typescript action
   uses: Maximisch/issue-sync-action
   with:
-    repo_target: "MyOrg/public-roadmap" # The target repository
+    target_repo: "MyOrg/public-roadmap" # The target repository
     only_sync_on_label: "publicise" # Only syncs issues with this label set
     only_sync_main_issue: true # Excludes comments
     source_pat: ${{ secrets.SOURCE_PAT }} # Personal Access Token for the source repository
     target_pat: ${{ secrets.TARGET_PAT }} # Personal Access Token for the target repository
-    source_url: "https://github-enterprise.source.com" # GitHub Enterprise Server URL for the source repository
-    target_url: "https://github-enterprise.target.com" # GitHub Enterprise Server URL for the target repository
+    source_url: "octodemo.com/api/v3" # GitHub Enterprise Server URL for the source repository
+    target_url: "api.github.com" # GitHub Cloud API URL for the target repository
 ```
+
+
+**NOTE:** In case of selecting a GHES instance as source/target, it is necessary to add `/api/v3` at the end of the URL. For `GitHub.com`, please add `api.github.com` as the destination.
